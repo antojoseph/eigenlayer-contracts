@@ -27,7 +27,7 @@ import "src/test/utils/OperatorWalletLib.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
-// forge script script/deploy/devnet/mutlichain/deploy_operatorSet_ecdsa.s.sol --rpc-url $RPC_HOLESKY --private-key $PRIVATE_KEY --broadcast --sig "run()" --verify $ETHERSCAN_API_KEY
+// forge script script/deploy/devnet/mutlichain/deploy_operatorSet_ecdsa.s.sol --rpc-url $RPC_SEPOLIA --private-key $PRIVATE_KEY --broadcast --sig "run()" --verify $ETHERSCAN_API_KEY
 contract DeployOperatorSetECDSA is Script, Test {
     using OperatorWalletLib for *;
     using Strings for uint256;
@@ -39,15 +39,15 @@ contract DeployOperatorSetECDSA is Script, Test {
     uint32 operatorSetId = 1;  // Changed from 0 to 1 for ECDSA operator set
 
     // Contracts
-    AllocationManager public allocationManager = AllocationManager(0xFdD5749e11977D60850E06bF5B13221Ad95eb6B4);
-    DelegationManager public delegationManager = DelegationManager(0x75dfE5B44C2E530568001400D3f704bC8AE350CC);
-    StrategyManager public strategyManager = StrategyManager(0xF9fbF2e35D8803273E214c99BF15174139f4E67a);
-    PermissionController public permissionController = PermissionController(0xa2348c77802238Db39f0CefAa500B62D3FDD682b);
-    IStrategy public strategy = IStrategy(0xD523267698C81a372191136e477fdebFa33D9FB4); // WETH strategy
-    IERC20 public weth = IERC20(0x94373a4919B3240D86eA41593D5eBa789FEF3848);
-    CrossChainRegistry public crossChainRegistry = CrossChainRegistry(0x0022d2014901F2AFBF5610dDFcd26afe2a65Ca6F);
-    KeyRegistrar public keyRegistrar = KeyRegistrar(0x1C84Bb62fE7791e173014A879C706445fa893BbE);
-    ECDSATableCalculator public tableCalculator = ECDSATableCalculator(0xDF4C89289A1B9De74550cE4dcFb867Ee1D2D3bF2); 
+    AllocationManager public allocationManager = AllocationManager(0x42583067658071247ec8CE0A516A58f682002d07);
+    DelegationManager public delegationManager = DelegationManager(0xD4A7E1Bd8015057293f0D0A557088c286942e84b);
+    StrategyManager public strategyManager = StrategyManager(0x2E3D6c0744b10eb0A4e6F679F71554a39Ec47a5D);
+    PermissionController public permissionController = PermissionController(0x44632dfBdCb6D3E21EF613B0ca8A6A0c618F5a37);
+    IStrategy public strategy = IStrategy(0x424246eF71b01ee33aA33aC590fd9a0855F5eFbc); // WETH strategy
+    IERC20 public weth = IERC20(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9);
+    CrossChainRegistry public crossChainRegistry = CrossChainRegistry(0xe850D8A178777b483D37fD492a476e3E6004C816);
+    KeyRegistrar public keyRegistrar = KeyRegistrar(0x78De554Ac8DfF368e3CAa73B3Df8AccCfD92928A);
+    ECDSATableCalculator public tableCalculator = ECDSATableCalculator(0x5612Fd146C2d40f1269E0e73945A534ec706dCDc); 
 
     // Storage for created operators (only using vmWallet)
     Wallet[] public operators;
@@ -189,7 +189,7 @@ contract DeployOperatorSetECDSA is Script, Test {
 
         // Create chain IDs array with chainID 17000
         uint256[] memory chainIDs = new uint256[](1);
-        chainIDs[0] = 17_000;
+        chainIDs[0] = 84_532;
 
         // Create generation reservation
         crossChainRegistry.createGenerationReservation(operatorSet, tableCalculator, config, chainIDs);

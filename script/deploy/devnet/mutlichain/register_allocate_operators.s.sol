@@ -10,7 +10,7 @@ import "src/contracts/libraries/OperatorSetLib.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
-// forge script script/deploy/devnet/mutlichain/register_allocate_operators.s.sol --rpc-url $RPC_HOLESKY --private-key $PRIVATE_KEY --broadcast --sig "run()"
+// forge script script/deploy/devnet/mutlichain/register_allocate_operators.s.sol --rpc-url $RPC_SEPOLIA --private-key $PRIVATE_KEY --broadcast --sig "run()"
 contract RegisterAllocateOperators is Script, Test {
     using stdJson for string;
 
@@ -20,8 +20,8 @@ contract RegisterAllocateOperators is Script, Test {
     uint32 operatorSetId = 1;
 
     // Contracts
-    AllocationManager public allocationManager = AllocationManager(0xFdD5749e11977D60850E06bF5B13221Ad95eb6B4);
-    IStrategy public strategy = IStrategy(0xD523267698C81a372191136e477fdebFa33D9FB4); // WETH strategy
+    AllocationManager public allocationManager = AllocationManager(0x42583067658071247ec8CE0A516A58f682002d07);
+    IStrategy public strategy = IStrategy(0x424246eF71b01ee33aA33aC590fd9a0855F5eFbc); // WETH strategy
 
     function run() public {
         // Create operators array
@@ -30,7 +30,7 @@ contract RegisterAllocateOperators is Script, Test {
         operators[1] = 0xF318c6D757d095Ba6dea320B3fE366c41b460c7b;
 
         // Create operator set struct
-        OperatorSet memory operatorSet = OperatorSet({avs: avs, id: operatorSetId});
+        // OperatorSet memory operatorSet = OperatorSet({avs: avs, id: operatorSetId});
 
         // Prepare operatorSetIds array
         uint32[] memory operatorSetIds = new uint32[](1);
