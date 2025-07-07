@@ -30,7 +30,7 @@ contract RegisterAllocateOperators is Script, Test {
         operators[1] = 0xF318c6D757d095Ba6dea320B3fE366c41b460c7b;
 
         // Create operator set struct
-        // OperatorSet memory operatorSet = OperatorSet({avs: avs, id: operatorSetId});
+        OperatorSet memory operatorSet = OperatorSet({avs: avs, id: operatorSetId});
 
         // Prepare operatorSetIds array
         uint32[] memory operatorSetIds = new uint32[](1);
