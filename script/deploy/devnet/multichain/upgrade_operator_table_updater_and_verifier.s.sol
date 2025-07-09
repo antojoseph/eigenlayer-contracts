@@ -15,7 +15,7 @@ import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
 // Run with:
-// forge script script/deploy/devnet/multichain/upgrade_operator_table_updater_and_verifier.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --sig "run()"
+// forge script script/deploy/devnet/multichain/upgrade_operator_table_updater_and_verifier.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast --sig "run()" --verify $ETHERSCAN_API_KEY
 /**
  * @title UpgradeOperatorTableUpdaterAndVerifiers
  * @notice Upgrades OperatorTableUpdater, BN254CertificateVerifier, and ECDSACertificateVerifier contracts
@@ -57,6 +57,7 @@ contract UpgradeOperatorTableUpdaterAndVerifier is Script, Test {
         operatorTableUpdaterImplementation = new OperatorTableUpdater(
             bn254CertificateVerifierProxy,  // Use existing proxy
             ecdsaCertificateVerifierProxy,  // Use existing proxy
+            IPauserRegistry(0x50712285cE831a6B9a11214A430f28999A5b4DAe),  // Use existing proxy
             VERSION
         );
         console.log("OperatorTableUpdater implementation deployed at:", address(operatorTableUpdaterImplementation));
