@@ -36,6 +36,9 @@ Destination Chain Contracts
 
 ## Changelog
 
+- chore: symmetric `BN254` and `ECDSA` checks [PR #1540](https://github.com/layr-labs/eigenlayer-contracts/pull/1540)
+- feat: cleaner generator updates [PR #1537](https://github.com/layr-labs/eigenlayer-contracts/pull/1537)
+- feat: invalid staleness period prevention [PR #1536](https://github.com/layr-labs/eigenlayer-contracts/pull/1536)
 - fix: multichain deploy scripts [PR #1510](https://github.com/layr-labs/eigenlayer-contracts/pull/1510)
 - test: multichain integration tests [PR #1528](https://github.com/layr-labs/eigenlayer-contracts/pull/1528)
 - fix: multichain clarity updates [PR #1527](https://github.com/layr-labs/eigenlayer-contracts/pull/1527)
