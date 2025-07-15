@@ -36,6 +36,7 @@ Destination Chain Contracts
 
 ## Changelog
 
+- feat: add calculateCertificateDigestBytes to ECDSA cert verifier [PR #1542](https://github.com/layr-labs/eigenlayer-contracts/pull/1542)
 - chore: symmetric `BN254` and `ECDSA` checks [PR #1540](https://github.com/layr-labs/eigenlayer-contracts/pull/1540)
 - feat: cleaner generator updates [PR #1537](https://github.com/layr-labs/eigenlayer-contracts/pull/1537)
 - feat: invalid staleness period prevention [PR #1536](https://github.com/layr-labs/eigenlayer-contracts/pull/1536)
