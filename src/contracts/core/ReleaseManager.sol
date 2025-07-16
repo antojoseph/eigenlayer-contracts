@@ -7,8 +7,6 @@ import "../mixins/SemVerMixin.sol";
 import "./ReleaseManagerStorage.sol";
 
 contract ReleaseManager is Initializable, ReleaseManagerStorage, PermissionControllerMixin, SemVerMixin {
-    using OperatorSetLib for OperatorSet;
-
     /**
      *
      *                         INITIALIZING FUNCTIONS
@@ -29,17 +27,17 @@ contract ReleaseManager is Initializable, ReleaseManagerStorage, PermissionContr
 
     /// @inheritdoc IReleaseManager
     function publishRelease(
-        OperatorSet calldata operatorSet,
+        Namespace calldata namespace,
         Release calldata release
-    ) external checkCanCall(operatorSet.avs) returns (uint256 releaseId) {
-        Release[] storage releases = _operatorSetReleases[operatorSet.key()];
+    ) external checkCanCall(namespace.authority) returns (uint256 releaseId) {
+        Release[] storage releases = _namespaceReleases[_key(namespace)];
 
-        require(bytes(_operatorSetMetadataURI[operatorSet.key()]).length != 0, MustPublishMetadataURI());
+        require(bytes(_namespaceMetadataURI[_key(namespace)]).length != 0, MustPublishMetadataURI());
         require(release.upgradeByTime >= block.timestamp, InvalidUpgradeByTime());
 
         // New release id is the length of the array before this call.
         releaseId = releases.length;
-        // Increment total releases for this operator set.
+        // Increment total releases for this namespace.
         releases.push();
         // Copy the release to storage.
         for (uint256 i = 0; i < release.artifacts.length; ++i) {
@@ -47,17 +45,17 @@ contract ReleaseManager is Initializable, ReleaseManagerStorage, PermissionContr
         }
         releases[releaseId].upgradeByTime = release.upgradeByTime;
 
-        emit ReleasePublished(operatorSet, releaseId, release);
+        emit ReleasePublished(namespace, releaseId, release);
     }
 
     /// @inheritdoc IReleaseManager
     function publishMetadataURI(
-        OperatorSet calldata operatorSet,
+        Namespace calldata namespace,
         string calldata metadataURI
-    ) external checkCanCall(operatorSet.avs) {
+    ) external checkCanCall(namespace.authority) {
         require(bytes(metadataURI).length != 0, InvalidMetadataURI());
-        _operatorSetMetadataURI[operatorSet.key()] = metadataURI;
-        emit MetadataURIPublished(operatorSet, metadataURI);
+        _namespaceMetadataURI[_key(namespace)] = metadataURI;
+        emit MetadataURIPublished(namespace, metadataURI);
     }
 
     /**
@@ -68,43 +66,52 @@ contract ReleaseManager is Initializable, ReleaseManagerStorage, PermissionContr
 
     /// @inheritdoc IReleaseManager
     function getTotalReleases(
-        OperatorSet memory operatorSet
+        Namespace memory namespace
     ) public view returns (uint256) {
-        return _operatorSetReleases[operatorSet.key()].length;
+        return _namespaceReleases[_key(namespace)].length;
     }
 
     /// @inheritdoc IReleaseManager
-    function getRelease(OperatorSet memory operatorSet, uint256 releaseId) external view returns (Release memory) {
-        return _operatorSetReleases[operatorSet.key()][releaseId];
+    function getRelease(Namespace memory namespace, uint256 releaseId) external view returns (Release memory) {
+        return _namespaceReleases[_key(namespace)][releaseId];
     }
 
     /// @inheritdoc IReleaseManager
     function getLatestRelease(
-        OperatorSet memory operatorSet
+        Namespace memory namespace
     ) public view returns (uint256, Release memory) {
-        Release[] storage releases = _operatorSetReleases[operatorSet.key()];
+        Release[] storage releases = _namespaceReleases[_key(namespace)];
         uint256 latestReleaseId = releases.length - 1;
         return (latestReleaseId, releases[latestReleaseId]);
     }
 
     /// @inheritdoc IReleaseManager
     function getLatestUpgradeByTime(
-        OperatorSet memory operatorSet
+        Namespace memory namespace
     ) external view returns (uint32) {
-        Release[] storage releases = _operatorSetReleases[operatorSet.key()];
+        Release[] storage releases = _namespaceReleases[_key(namespace)];
         uint256 latestReleaseId = releases.length - 1;
         return releases[latestReleaseId].upgradeByTime;
     }
 
     /// @inheritdoc IReleaseManager
-    function isValidRelease(OperatorSet memory operatorSet, uint256 releaseId) external view returns (bool) {
-        return releaseId == getTotalReleases(operatorSet) - 1;
+    function isValidRelease(Namespace memory namespace, uint256 releaseId) external view returns (bool) {
+        return releaseId == getTotalReleases(namespace) - 1;
     }
 
     /// @inheritdoc IReleaseManager
     function getMetadataURI(
-        OperatorSet memory operatorSet
+        Namespace memory namespace
     ) external view returns (string memory) {
-        return _operatorSetMetadataURI[operatorSet.key()];
+        return _namespaceMetadataURI[_key(namespace)];
+    }
+
+    /**
+     * @notice Generates a unique key for storage
+     */
+    function _key(
+        Namespace memory namespace
+    ) internal pure returns (bytes32) {
+        return keccak256(abi.encode(namespace.authority, namespace.id));
     }
 }

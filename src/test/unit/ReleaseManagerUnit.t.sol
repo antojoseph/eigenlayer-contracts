@@ -5,12 +5,10 @@ import "src/contracts/core/ReleaseManager.sol";
 import "src/test/utils/EigenLayerUnitTestSetup.sol";
 import "src/contracts/interfaces/IReleaseManager.sol";
 import "src/contracts/interfaces/IPermissionController.sol";
-import "src/contracts/libraries/OperatorSetLib.sol";
 
 contract ReleaseManagerUnitTests is EigenLayerUnitTestSetup, IReleaseManagerErrors, IReleaseManagerEvents {
     using StdStyle for *;
     using ArrayLib for *;
-    using OperatorSetLib for OperatorSet;
 
     /// -----------------------------------------------------------------------
     /// Constants
@@ -30,7 +28,7 @@ contract ReleaseManagerUnitTests is EigenLayerUnitTestSetup, IReleaseManagerErro
     /// -----------------------------------------------------------------------
 
     address defaultAVS = address(0x1234);
-    OperatorSet defaultOperatorSet;
+    Namespace defaultNamespace;
     Release defaultRelease;
     Artifact[] defaultArtifacts;
 
@@ -45,7 +43,7 @@ contract ReleaseManagerUnitTests is EigenLayerUnitTestSetup, IReleaseManagerErro
         releaseManager = new ReleaseManager(permissionController, "1.0.0");
 
         // Setup default test data
-        defaultOperatorSet = OperatorSet(defaultAVS, 0);
+        defaultNamespace = Namespace(defaultAVS, 0);
 
         defaultArtifacts.push(Artifact({digest: keccak256("artifact1"), registry: "https://example.com/artifact1"}));
         defaultArtifacts.push(Artifact({digest: keccak256("artifact2"), registry: "https://example.com/artifact2"}));
@@ -56,7 +54,7 @@ contract ReleaseManagerUnitTests is EigenLayerUnitTestSetup, IReleaseManagerErro
         permissionController.setAppointee(defaultAVS, address(this), address(releaseManager), IReleaseManager.publishRelease.selector);
 
         cheats.prank(defaultAVS);
-        releaseManager.publishMetadataURI(defaultOperatorSet, "https://example.com/metadata");
+        releaseManager.publishMetadataURI(defaultNamespace, "https://example.com/metadata");
     }
 
     /// -----------------------------------------------------------------------
@@ -78,12 +76,12 @@ contract ReleaseManagerUnitTests is EigenLayerUnitTestSetup, IReleaseManagerErro
         return _createRelease(artifacts, upgradeByTime);
     }
 
-    function _publishRelease(OperatorSet memory operatorSet, Release memory release) internal returns (uint) {
-        return releaseManager.publishRelease(operatorSet, release);
+    function _publishRelease(Namespace memory namespace, Release memory release) internal returns (uint) {
+        return releaseManager.publishRelease(namespace, release);
     }
 
-    function _checkReleaseStorage(OperatorSet memory operatorSet, uint releaseId, Release memory expectedRelease) internal view {
-        Release memory actualRelease = releaseManager.getRelease(operatorSet, releaseId);
+    function _checkReleaseStorage(Namespace memory namespace, uint releaseId, Release memory expectedRelease) internal view {
+        Release memory actualRelease = releaseManager.getRelease(namespace, releaseId);
 
         console.log("\nChecking Release Storage:".yellow());
         console.log("   Release ID: %d", releaseId);
@@ -112,11 +110,11 @@ contract ReleaseManagerUnitTests_Initialization is ReleaseManagerUnitTests {
 
 contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
     function test_revert_MustPublishMetadataURI() public {
-        OperatorSet memory operatorSet = OperatorSet(defaultAVS, 1);
+        Namespace memory namespace = Namespace(defaultAVS, 1);
 
         cheats.prank(defaultAVS);
         vm.expectRevert(IReleaseManagerErrors.MustPublishMetadataURI.selector);
-        releaseManager.publishRelease(operatorSet, defaultRelease);
+        releaseManager.publishRelease(namespace, defaultRelease);
     }
 
     function test_revert_InvalidUpgradeByTime() public {
@@ -124,7 +122,7 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
         Release memory pastRelease = _createRelease(defaultArtifacts, uint32(block.timestamp - 1));
 
         vm.expectRevert(InvalidUpgradeByTime.selector);
-        releaseManager.publishRelease(defaultOperatorSet, pastRelease);
+        releaseManager.publishRelease(defaultNamespace, pastRelease);
     }
 
     function test_revert_upgradeByTimeEqualToNow() public {
@@ -132,7 +130,7 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
         Release memory currentRelease = _createRelease(defaultArtifacts, uint32(block.timestamp));
 
         // Should pass since requirement is >=
-        uint releaseId = releaseManager.publishRelease(defaultOperatorSet, currentRelease);
+        uint releaseId = releaseManager.publishRelease(defaultNamespace, currentRelease);
         assertEq(releaseId, 0, "first release should have ID 0");
     }
 
@@ -142,25 +140,25 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
         permissionController.removeAppointee(defaultAVS, address(this), address(releaseManager), IReleaseManager.publishRelease.selector);
 
         vm.expectRevert(PermissionControllerMixin.InvalidPermissions.selector);
-        releaseManager.publishRelease(defaultOperatorSet, defaultRelease);
+        releaseManager.publishRelease(defaultNamespace, defaultRelease);
     }
 
     function test_publishSingleRelease() public {
         // Check event emission
         vm.expectEmit(true, true, true, true, address(releaseManager));
-        emit ReleasePublished(defaultOperatorSet, 0, defaultRelease);
+        emit ReleasePublished(defaultNamespace, 0, defaultRelease);
 
         // Publish release
-        uint releaseId = _publishRelease(defaultOperatorSet, defaultRelease);
+        uint releaseId = _publishRelease(defaultNamespace, defaultRelease);
 
         // Verify release ID
         assertEq(releaseId, 0, "first release should have ID 0");
 
         // Verify storage
-        _checkReleaseStorage(defaultOperatorSet, releaseId, defaultRelease);
+        _checkReleaseStorage(defaultNamespace, releaseId, defaultRelease);
 
         // Verify total releases
-        assertEq(releaseManager.getTotalReleases(defaultOperatorSet), 1, "should have 1 release");
+        assertEq(releaseManager.getTotalReleases(defaultNamespace), 1, "should have 1 release");
     }
 
     function testFuzz_publishMultipleReleases(uint numReleases) public {
@@ -171,18 +169,18 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
 
             // Check event
             vm.expectEmit(true, true, true, true, address(releaseManager));
-            emit ReleasePublished(defaultOperatorSet, i, release);
+            emit ReleasePublished(defaultNamespace, i, release);
 
             // Publish and verify ID
-            uint releaseId = _publishRelease(defaultOperatorSet, release);
+            uint releaseId = _publishRelease(defaultNamespace, release);
             assertEq(releaseId, i, "incorrect release ID");
 
             // Verify storage
-            _checkReleaseStorage(defaultOperatorSet, releaseId, release);
+            _checkReleaseStorage(defaultNamespace, releaseId, release);
         }
 
         // Verify total count
-        assertEq(releaseManager.getTotalReleases(defaultOperatorSet), numReleases, "incorrect total releases");
+        assertEq(releaseManager.getTotalReleases(defaultNamespace), numReleases, "incorrect total releases");
     }
 
     function test_publishReleaseWithMultipleArtifacts() public {
@@ -191,10 +189,10 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
         Release memory largeRelease = _createReleaseWithArtifacts(numArtifacts, uint32(block.timestamp + 1 days));
 
         // Publish
-        uint releaseId = _publishRelease(defaultOperatorSet, largeRelease);
+        uint releaseId = _publishRelease(defaultNamespace, largeRelease);
 
         // Verify all artifacts stored correctly
-        _checkReleaseStorage(defaultOperatorSet, releaseId, largeRelease);
+        _checkReleaseStorage(defaultNamespace, releaseId, largeRelease);
     }
 
     function test_publishReleaseEmptyArtifacts() public {
@@ -203,76 +201,76 @@ contract ReleaseManagerUnitTests_publishRelease is ReleaseManagerUnitTests {
         Release memory emptyRelease = _createRelease(emptyArtifacts, uint32(block.timestamp + 1));
 
         // Should succeed
-        uint releaseId = _publishRelease(defaultOperatorSet, emptyRelease);
+        uint releaseId = _publishRelease(defaultNamespace, emptyRelease);
 
         // Verify storage
-        _checkReleaseStorage(defaultOperatorSet, releaseId, emptyRelease);
+        _checkReleaseStorage(defaultNamespace, releaseId, emptyRelease);
     }
 
-    function testFuzz_publishReleaseDifferentOperatorSets(uint32 operatorSetId1, uint32 operatorSetId2) public {
-        vm.assume(operatorSetId1 != operatorSetId2);
+    function testFuzz_publishReleaseDifferentNamespaces(uint32 namespaceId1, uint32 namespaceId2) public {
+        vm.assume(namespaceId1 != namespaceId2);
 
-        OperatorSet memory operatorSet1 = OperatorSet(defaultAVS, operatorSetId1);
-        OperatorSet memory operatorSet2 = OperatorSet(defaultAVS, operatorSetId2);
+        Namespace memory namespace1 = Namespace(defaultAVS, namespaceId1);
+        Namespace memory namespace2 = Namespace(defaultAVS, namespaceId2);
 
-        cheats.prank(operatorSet1.avs);
-        releaseManager.publishMetadataURI(operatorSet1, "https://example.com/metadata");
-        cheats.prank(operatorSet2.avs);
-        releaseManager.publishMetadataURI(operatorSet2, "https://example.com/metadata");
+        cheats.prank(namespace1.authority);
+        releaseManager.publishMetadataURI(namespace1, "https://example.com/metadata");
+        cheats.prank(namespace2.authority);
+        releaseManager.publishMetadataURI(namespace2, "https://example.com/metadata");
 
-        // Publish to first operator set
-        uint releaseId1 = _publishRelease(operatorSet1, defaultRelease);
-        assertEq(releaseId1, 0, "first release in set1 should be 0");
+        // Publish to first namespace
+        uint releaseId1 = _publishRelease(namespace1, defaultRelease);
+        assertEq(releaseId1, 0, "first release in namespace1 should be 0");
 
-        // Publish to second operator set
-        uint releaseId2 = _publishRelease(operatorSet2, defaultRelease);
-        assertEq(releaseId2, 0, "first release in set2 should be 0");
+        // Publish to second namespace
+        uint releaseId2 = _publishRelease(namespace2, defaultRelease);
+        assertEq(releaseId2, 0, "first release in namespace2 should be 0");
 
         // Verify independent storage
-        assertEq(releaseManager.getTotalReleases(operatorSet1), 1, "set1 should have 1 release");
-        assertEq(releaseManager.getTotalReleases(operatorSet2), 1, "set2 should have 1 release");
+        assertEq(releaseManager.getTotalReleases(namespace1), 1, "namespace1 should have 1 release");
+        assertEq(releaseManager.getTotalReleases(namespace2), 1, "namespace2 should have 1 release");
     }
 }
 
 contract ReleaseManagerUnitTests_getTotalReleases is ReleaseManagerUnitTests {
     function test_getTotalReleases_noReleases() public view {
-        uint total = releaseManager.getTotalReleases(defaultOperatorSet);
+        uint total = releaseManager.getTotalReleases(defaultNamespace);
         assertEq(total, 0, "should have 0 releases initially");
     }
 
     function test_getTotalReleases_afterPublish() public {
         // Publish some releases
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
-        uint total = releaseManager.getTotalReleases(defaultOperatorSet);
+        uint total = releaseManager.getTotalReleases(defaultNamespace);
         assertEq(total, 3, "should have 3 releases");
     }
 
     function testFuzz_getTotalReleases_multiplePublishes(uint8 numReleases) public {
         for (uint i = 0; i < numReleases; i++) {
             Release memory release = _createReleaseWithArtifacts(1, uint32(block.timestamp + i + 1));
-            _publishRelease(defaultOperatorSet, release);
+            _publishRelease(defaultNamespace, release);
         }
 
-        uint total = releaseManager.getTotalReleases(defaultOperatorSet);
+        uint total = releaseManager.getTotalReleases(defaultNamespace);
         assertEq(total, numReleases, "incorrect total releases");
     }
 
-    function test_getTotalReleases_differentOperatorSets() public {
-        OperatorSet memory operatorSet2 = OperatorSet(defaultAVS, 1);
+    function test_getTotalReleases_differentNamespaces() public {
+        Namespace memory namespace2 = Namespace(defaultAVS, 1);
 
-        cheats.prank(operatorSet2.avs);
-        releaseManager.publishMetadataURI(operatorSet2, "https://example.com/metadata");
+        cheats.prank(namespace2.authority);
+        releaseManager.publishMetadataURI(namespace2, "https://example.com/metadata");
 
-        // Publish to different sets
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(operatorSet2, defaultRelease);
+        // Publish to different namespaces
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(namespace2, defaultRelease);
 
-        assertEq(releaseManager.getTotalReleases(defaultOperatorSet), 2, "set1 should have 2 releases");
-        assertEq(releaseManager.getTotalReleases(operatorSet2), 1, "set2 should have 1 release");
+        assertEq(releaseManager.getTotalReleases(defaultNamespace), 2, "namespace1 should have 2 releases");
+        assertEq(releaseManager.getTotalReleases(namespace2), 1, "namespace2 should have 1 release");
     }
 }
 
@@ -280,15 +278,15 @@ contract ReleaseManagerUnitTests_getRelease is ReleaseManagerUnitTests {
     function test_revert_getRelease_outOfBounds() public {
         // Try to get non-existent release
         vm.expectRevert(); // Array out of bounds
-        releaseManager.getRelease(defaultOperatorSet, 0);
+        releaseManager.getRelease(defaultNamespace, 0);
     }
 
     function test_getRelease_validId() public {
         // Publish a release
-        uint releaseId = _publishRelease(defaultOperatorSet, defaultRelease);
+        uint releaseId = _publishRelease(defaultNamespace, defaultRelease);
 
         // Get and verify
-        Release memory retrieved = releaseManager.getRelease(defaultOperatorSet, releaseId);
+        Release memory retrieved = releaseManager.getRelease(defaultNamespace, releaseId);
         assertEq(retrieved.upgradeByTime, defaultRelease.upgradeByTime, "upgradeByTime mismatch");
         assertEq(retrieved.artifacts.length, defaultRelease.artifacts.length, "artifacts length mismatch");
     }
@@ -302,11 +300,11 @@ contract ReleaseManagerUnitTests_getRelease is ReleaseManagerUnitTests {
         // Publish multiple releases
         for (uint i = 0; i < numReleases; i++) {
             releases[i] = _createReleaseWithArtifacts(i + 1, uint32(block.timestamp + i + 1));
-            _publishRelease(defaultOperatorSet, releases[i]);
+            _publishRelease(defaultNamespace, releases[i]);
         }
 
         // Get specific release and verify
-        Release memory retrieved = releaseManager.getRelease(defaultOperatorSet, targetIndex);
+        Release memory retrieved = releaseManager.getRelease(defaultNamespace, targetIndex);
         assertEq(retrieved.upgradeByTime, releases[targetIndex].upgradeByTime, "upgradeByTime mismatch");
         assertEq(retrieved.artifacts.length, releases[targetIndex].artifacts.length, "artifacts length mismatch");
     }
@@ -317,14 +315,14 @@ contract ReleaseManagerUnitTests_getRelease is ReleaseManagerUnitTests {
         Release memory release2 = _createReleaseWithArtifacts(2, uint32(block.timestamp + 2));
         Release memory release3 = _createReleaseWithArtifacts(3, uint32(block.timestamp + 3));
 
-        _publishRelease(defaultOperatorSet, release1);
-        _publishRelease(defaultOperatorSet, release2);
-        _publishRelease(defaultOperatorSet, release3);
+        _publishRelease(defaultNamespace, release1);
+        _publishRelease(defaultNamespace, release2);
+        _publishRelease(defaultNamespace, release3);
 
         // Verify each can be retrieved correctly
-        _checkReleaseStorage(defaultOperatorSet, 0, release1);
-        _checkReleaseStorage(defaultOperatorSet, 1, release2);
-        _checkReleaseStorage(defaultOperatorSet, 2, release3);
+        _checkReleaseStorage(defaultNamespace, 0, release1);
+        _checkReleaseStorage(defaultNamespace, 1, release2);
+        _checkReleaseStorage(defaultNamespace, 2, release3);
     }
 }
 
@@ -332,15 +330,15 @@ contract ReleaseManagerUnitTests_getLatestRelease is ReleaseManagerUnitTests {
     function test_revert_getLatestRelease_noReleases() public {
         // Should revert with underflow
         vm.expectRevert();
-        releaseManager.getLatestRelease(defaultOperatorSet);
+        releaseManager.getLatestRelease(defaultNamespace);
     }
 
     function test_getLatestRelease_singleRelease() public {
         // Publish one release
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
         // Get latest
-        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultOperatorSet);
+        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultNamespace);
         assertEq(latestReleaseId, 0, "latest release id should be 0");
         assertEq(latest.upgradeByTime, defaultRelease.upgradeByTime, "upgradeByTime mismatch");
         assertEq(latest.artifacts.length, defaultRelease.artifacts.length, "artifacts length mismatch");
@@ -354,11 +352,11 @@ contract ReleaseManagerUnitTests_getLatestRelease is ReleaseManagerUnitTests {
         // Publish multiple releases
         for (uint i = 0; i < numReleases; i++) {
             lastRelease = _createReleaseWithArtifacts(i + 1, uint32(block.timestamp + i + 1));
-            _publishRelease(defaultOperatorSet, lastRelease);
+            _publishRelease(defaultNamespace, lastRelease);
         }
 
         // Get latest and verify it's the last one published
-        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultOperatorSet);
+        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultNamespace);
         assertEq(latestReleaseId, numReleases - 1, "latest release id should be the last one published");
         assertEq(latest.upgradeByTime, lastRelease.upgradeByTime, "upgradeByTime mismatch");
         assertEq(latest.artifacts.length, lastRelease.artifacts.length, "artifacts length mismatch");
@@ -367,19 +365,19 @@ contract ReleaseManagerUnitTests_getLatestRelease is ReleaseManagerUnitTests {
     function test_getLatestRelease_afterUpdates() public {
         // Publish initial release
         Release memory firstRelease = _createReleaseWithArtifacts(1, uint32(block.timestamp + 1));
-        _publishRelease(defaultOperatorSet, firstRelease);
+        _publishRelease(defaultNamespace, firstRelease);
 
         // Verify latest is first
-        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultOperatorSet);
+        (uint latestReleaseId, Release memory latest) = releaseManager.getLatestRelease(defaultNamespace);
         assertEq(latestReleaseId, 0, "latest release id should be 0");
         assertEq(latest.artifacts.length, 1, "should have 1 artifact");
 
         // Publish second release
         Release memory secondRelease = _createReleaseWithArtifacts(5, uint32(block.timestamp + 2));
-        _publishRelease(defaultOperatorSet, secondRelease);
+        _publishRelease(defaultNamespace, secondRelease);
 
         // Verify latest is now second
-        (latestReleaseId, latest) = releaseManager.getLatestRelease(defaultOperatorSet);
+        (latestReleaseId, latest) = releaseManager.getLatestRelease(defaultNamespace);
         assertEq(latestReleaseId, 1, "latest release id should be 1");
         assertEq(latest.artifacts.length, 5, "should have 5 artifacts");
     }
@@ -393,52 +391,52 @@ contract ReleaseManagerUnitTests_EdgeCases is ReleaseManagerUnitTests {
         Release memory largeRelease = _createReleaseWithArtifacts(numArtifacts, uint32(block.timestamp + 1));
 
         // Publish
-        uint releaseId = _publishRelease(defaultOperatorSet, largeRelease);
+        uint releaseId = _publishRelease(defaultNamespace, largeRelease);
 
         // Verify storage
-        Release memory retrieved = releaseManager.getRelease(defaultOperatorSet, releaseId);
+        Release memory retrieved = releaseManager.getRelease(defaultNamespace, releaseId);
         assertEq(retrieved.artifacts.length, numArtifacts, "artifacts not stored correctly");
     }
 
     function test_boundaryTimestamps() public {
         // Test with max uint32 timestamp
         Release memory maxTimeRelease = _createRelease(defaultArtifacts, type(uint32).max);
-        uint releaseId = _publishRelease(defaultOperatorSet, maxTimeRelease);
+        uint releaseId = _publishRelease(defaultNamespace, maxTimeRelease);
 
-        Release memory retrieved = releaseManager.getRelease(defaultOperatorSet, releaseId);
+        Release memory retrieved = releaseManager.getRelease(defaultNamespace, releaseId);
         assertEq(retrieved.upgradeByTime, type(uint32).max, "max timestamp not handled correctly");
     }
 
-    function test_multipleOperatorSetsIndependence() public {
-        // Create multiple operator sets
-        OperatorSet memory set1 = OperatorSet(defaultAVS, 1);
-        OperatorSet memory set2 = OperatorSet(address(0x5678), 0);
+    function test_multipleNamespacesIndependence() public {
+        // Create multiple namespaces
+        Namespace memory namespace1 = Namespace(defaultAVS, 1);
+        Namespace memory namespace2 = Namespace(address(0x5678), 0);
 
-        cheats.prank(set1.avs);
-        releaseManager.publishMetadataURI(set1, "https://example.com/metadata");
-        cheats.prank(set2.avs);
-        releaseManager.publishMetadataURI(set2, "https://example.com/metadata");
+        cheats.prank(namespace1.authority);
+        releaseManager.publishMetadataURI(namespace1, "https://example.com/metadata");
+        cheats.prank(namespace2.authority);
+        releaseManager.publishMetadataURI(namespace2, "https://example.com/metadata");
 
-        // Grant permission for second AVS
-        cheats.prank(set2.avs);
-        permissionController.setAppointee(set2.avs, address(this), address(releaseManager), IReleaseManager.publishRelease.selector);
+        // Grant permission for second authority
+        cheats.prank(namespace2.authority);
+        permissionController.setAppointee(namespace2.authority, address(this), address(releaseManager), IReleaseManager.publishRelease.selector);
 
         // Publish to each
         Release memory release1 = _createReleaseWithArtifacts(1, uint32(block.timestamp + 1));
         Release memory release2 = _createReleaseWithArtifacts(2, uint32(block.timestamp + 2));
 
-        _publishRelease(set1, release1);
-        _publishRelease(set2, release2);
+        _publishRelease(namespace1, release1);
+        _publishRelease(namespace2, release2);
 
         // Verify independence
-        assertEq(releaseManager.getTotalReleases(set1), 1, "set1 should have 1 release");
-        assertEq(releaseManager.getTotalReleases(set2), 1, "set2 should have 1 release");
+        assertEq(releaseManager.getTotalReleases(namespace1), 1, "namespace1 should have 1 release");
+        assertEq(releaseManager.getTotalReleases(namespace2), 1, "namespace2 should have 1 release");
 
-        Release memory retrieved1 = releaseManager.getRelease(set1, 0);
-        Release memory retrieved2 = releaseManager.getRelease(set2, 0);
+        Release memory retrieved1 = releaseManager.getRelease(namespace1, 0);
+        Release memory retrieved2 = releaseManager.getRelease(namespace2, 0);
 
-        assertEq(retrieved1.artifacts.length, 1, "set1 release should have 1 artifact");
-        assertEq(retrieved2.artifacts.length, 2, "set2 release should have 2 artifacts");
+        assertEq(retrieved1.artifacts.length, 1, "namespace1 release should have 1 artifact");
+        assertEq(retrieved2.artifacts.length, 2, "namespace2 release should have 2 artifacts");
     }
 }
 
@@ -446,25 +444,25 @@ contract ReleaseManagerUnitTests_getLatestUpgradeByTime is ReleaseManagerUnitTes
     function test_revert_getLatestUpgradeByTime_noReleases() public {
         // Should revert with underflow
         vm.expectRevert();
-        releaseManager.getLatestUpgradeByTime(defaultOperatorSet);
+        releaseManager.getLatestUpgradeByTime(defaultNamespace);
     }
 
     function test_getLatestUpgradeByTime_singleRelease() public {
         // Publish one release
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
         // Get latest upgrade by time
-        uint upgradeByTime = releaseManager.getLatestUpgradeByTime(defaultOperatorSet);
+        uint upgradeByTime = releaseManager.getLatestUpgradeByTime(defaultNamespace);
         assertEq(upgradeByTime, defaultRelease.upgradeByTime, "upgradeByTime mismatch");
     }
 
     function test_getLatestUpgradeByTime_multipleReleases() public {
         // Publish multiple releases
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
         // Get latest upgrade by time
-        uint upgradeByTime = releaseManager.getLatestUpgradeByTime(defaultOperatorSet);
+        uint upgradeByTime = releaseManager.getLatestUpgradeByTime(defaultNamespace);
         assertEq(upgradeByTime, defaultRelease.upgradeByTime, "upgradeByTime mismatch");
     }
 }
@@ -473,28 +471,28 @@ contract ReleaseManagerUnitTests_isValidRelease is ReleaseManagerUnitTests {
     function test_revert_isValidRelease_noReleases() public {
         // Should revert with underflow
         vm.expectRevert();
-        releaseManager.isValidRelease(defaultOperatorSet, 0);
+        releaseManager.isValidRelease(defaultNamespace, 0);
     }
 
     function test_isValidRelease_singleRelease() public {
         // Publish one release
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
         // Check if the release is the latest
-        bool isLatest = releaseManager.isValidRelease(defaultOperatorSet, 0);
+        bool isLatest = releaseManager.isValidRelease(defaultNamespace, 0);
         assertEq(isLatest, true, "release should be the latest");
     }
 
     function test_isValidRelease_multipleReleases() public {
         // Publish multiple releases
-        _publishRelease(defaultOperatorSet, defaultRelease);
-        _publishRelease(defaultOperatorSet, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
+        _publishRelease(defaultNamespace, defaultRelease);
 
         // Check if the release is the latest
-        bool isLatest = releaseManager.isValidRelease(defaultOperatorSet, 0);
+        bool isLatest = releaseManager.isValidRelease(defaultNamespace, 0);
         assertEq(isLatest, false, "first release should not be the latest");
 
-        isLatest = releaseManager.isValidRelease(defaultOperatorSet, 1);
+        isLatest = releaseManager.isValidRelease(defaultNamespace, 1);
         assertEq(isLatest, true, "second release should be the latest");
     }
 }
@@ -503,17 +501,17 @@ contract ReleaseManagerUnitTests_publishMetadataURI is ReleaseManagerUnitTests {
     function test_revert_InvalidMetadataURI() public {
         cheats.prank(defaultAVS);
         vm.expectRevert(IReleaseManagerErrors.InvalidMetadataURI.selector);
-        releaseManager.publishMetadataURI(defaultOperatorSet, "");
+        releaseManager.publishMetadataURI(defaultNamespace, "");
     }
 
     function test_publishMetadataURI_Correctness() public {
         string memory registry = "https://example.com/metadata";
         cheats.expectEmit(true, true, true, true, address(releaseManager));
-        emit MetadataURIPublished(defaultOperatorSet, registry);
+        emit MetadataURIPublished(defaultNamespace, registry);
 
         cheats.prank(defaultAVS);
-        releaseManager.publishMetadataURI(defaultOperatorSet, registry);
+        releaseManager.publishMetadataURI(defaultNamespace, registry);
 
-        assertEq(releaseManager.getMetadataURI(defaultOperatorSet), registry, "metadata URI not set correctly");
+        assertEq(releaseManager.getMetadataURI(defaultNamespace), registry, "metadata URI not set correctly");
     }
 }
