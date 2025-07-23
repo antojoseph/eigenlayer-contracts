@@ -10,7 +10,7 @@ import "src/contracts/libraries/OperatorSetLib.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
-// forge script script/deploy/devnet/mutlichain/register_allocate_operators.s.sol --rpc-url $RPC_HOLESKY --private-key $PRIVATE_KEY --broadcast --sig "run()"
+// forge script script/deploy/devnet/multichain/register_allocate_operators.s.sol --rpc-url $RPC_SEPOLIA --private-key $PRIVATE_KEY --broadcast --sig "run()"
 contract RegisterAllocateOperators is Script, Test {
     using stdJson for string;
 
@@ -20,8 +20,8 @@ contract RegisterAllocateOperators is Script, Test {
     uint32 operatorSetId = 50;
 
     // Contracts
-    AllocationManager public allocationManager = AllocationManager(0xFdD5749e11977D60850E06bF5B13221Ad95eb6B4);
-    IStrategy public strategy = IStrategy(0xD523267698C81a372191136e477fdebFa33D9FB4); // WETH strategy
+    AllocationManager public allocationManager = AllocationManager(0x42583067658071247ec8CE0A516A58f682002d07);
+    IStrategy public strategy = IStrategy(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9); // WETH strategy
 
     function run() public {
         // Create operators array

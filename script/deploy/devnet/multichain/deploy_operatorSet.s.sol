@@ -30,7 +30,7 @@ import "src/test/utils/OperatorWalletLib.sol";
 import "forge-std/Script.sol";
 import "forge-std/Test.sol";
 
-// forge script script/deploy/devnet/mutlichain/deploy_operatorSet.s.sol --rpc-url $RPC_HOLESKY --private-key $PRIVATE_KEY --broadcast --sig "run()"
+// forge script script/deploy/devnet/multichain/deploy_operatorSet.s.sol --rpc-url $RPC_SEPOLIA --private-key $PRIVATE_KEY --broadcast --sig "run()"
 contract DeployOperatorSet is Script, Test {
     using OperatorWalletLib for *;
     using Strings for uint256;
@@ -43,15 +43,15 @@ contract DeployOperatorSet is Script, Test {
     uint32 operatorSetId = 50;
 
     // Contracts
-    AllocationManager public allocationManager = AllocationManager(0xFdD5749e11977D60850E06bF5B13221Ad95eb6B4);
-    DelegationManager public delegationManager = DelegationManager(0x75dfE5B44C2E530568001400D3f704bC8AE350CC);
-    StrategyManager public strategyManager = StrategyManager(0xF9fbF2e35D8803273E214c99BF15174139f4E67a);
-    PermissionController public permissionController = PermissionController(0xa2348c77802238Db39f0CefAa500B62D3FDD682b);
-    IStrategy public strategy = IStrategy(0xD523267698C81a372191136e477fdebFa33D9FB4); // WETH strategy
-    IERC20 public weth = IERC20(0x94373a4919B3240D86eA41593D5eBa789FEF3848);
-    CrossChainRegistry public crossChainRegistry = CrossChainRegistry(0x275a472Bf5569a9241d1B3dBeD830a0D9E1f9C47);
-    KeyRegistrar public keyRegistrar = KeyRegistrar(0x2647069A19B3ffaD96FAe9278B9a1368dEC83d27);
-    IOperatorTableCalculator public tableCalculator = IOperatorTableCalculator(0xC66E1d51b39e30DF789fF74D4aEF6e7817Cc331A);
+    AllocationManager public allocationManager = AllocationManager(0x42583067658071247ec8CE0A516A58f682002d07);
+    DelegationManager public delegationManager = DelegationManager(0xD4A7E1Bd8015057293f0D0A557088c286942e84b);
+    StrategyManager public strategyManager = StrategyManager(0x2E3D6c0744b10eb0A4e6F679F71554a39Ec47a5D);
+    PermissionController public permissionController = PermissionController(0x44632dfBdCb6D3E21EF613B0ca8A6A0c618F5a37);
+    IStrategy public strategy = IStrategy(0x424246eF71b01ee33aA33aC590fd9a0855F5eFbc); // WETH strategy
+    IERC20 public weth = IERC20(0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9);
+    CrossChainRegistry public crossChainRegistry = CrossChainRegistry(0x287381B1570d9048c4B4C7EC94d21dDb8Aa1352a);
+    KeyRegistrar public keyRegistrar = KeyRegistrar(0xA4dB30D08d8bbcA00D40600bee9F029984dB162a);
+    IOperatorTableCalculator public tableCalculator = IOperatorTableCalculator(0xa19E3B00cf4aC46B5e6dc0Bbb0Fb0c86D0D65603);
 
     // Storage for created operators
     Operator[] public operators;
