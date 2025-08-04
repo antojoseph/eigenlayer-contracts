@@ -184,9 +184,13 @@ interface ICrossChainRegistry is ICrossChainRegistryErrors, ICrossChainRegistryE
 
     /**
      * @notice Gets the active generation reservations by range
-     * @param startIndex the start index of the range, inclusive
-     * @param endIndex the end index of the range, exclusive
+     * @param startIndex the start index of the range, inclusive. mMst be strictly less than endIndex)
+     * @param endIndex the end index of the range, exclusive. Must be less than or equal to the length 
+     *        of the active generation reservations array, which is given by `getActiveGenerationReservationCount()`
      * @return An array of operatorSets with active generationReservations
+     * @dev Reverts for:
+     *      - InvalidRange: startIndex is greater than or equal to endIndex
+     *      - InvalidEndIndex: endIndex is greater than the length of the active generation reservations array
      */
     function getActiveGenerationReservationsByRange(
         uint256 startIndex,

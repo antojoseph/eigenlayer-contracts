@@ -296,7 +296,7 @@ contract CrossChainRegistry is
         uint256 startIndex,
         uint256 endIndex
     ) external view returns (OperatorSet[] memory) {
-        require(startIndex <= endIndex, InvalidRange());
+        require(startIndex < endIndex, InvalidRange());
         require(endIndex <= _activeGenerationReservations.length(), InvalidEndIndex());
 
         uint256 length = endIndex - startIndex;

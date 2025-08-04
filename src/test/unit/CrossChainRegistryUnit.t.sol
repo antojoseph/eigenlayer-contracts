@@ -879,13 +879,13 @@ contract CrossChainRegistryUnitTests_getActiveGenerationReservationsByRange is C
         crossChainRegistry.getActiveGenerationReservationsByRange(0, 1); // length is 0, so endIndex 1 is invalid
     }
 
-    function test_emptyRange_startEqualEnd() public {
+    function test_revert_invalidRange_startEqualEnd() public {
         // Create some reservations first
         crossChainRegistry.createGenerationReservation(defaultOperatorSet, defaultCalculator, defaultConfig);
 
-        // Test slice(n,n)
-        OperatorSet[] memory reservations = crossChainRegistry.getActiveGenerationReservationsByRange(0, 0);
-        assertEq(reservations.length, 0, "Should have 0 reservations");
+        // Test slice(n,n) - should revert with InvalidRange since startIndex must be strictly less than endIndex
+        cheats.expectRevert(InvalidRange.selector);
+        crossChainRegistry.getActiveGenerationReservationsByRange(0, 0);
     }
 
     function test_getActiveGenerationReservationsByRange_fullRange() public {
