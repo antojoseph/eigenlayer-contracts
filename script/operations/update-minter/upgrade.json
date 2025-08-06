@@ -1,0 +1,15 @@
+{
+    "name": "update-minter",
+    "from": "1.8.0-rc.0",
+    "to": "1.8.0-rc.0",
+    "phases": [
+        {
+            "type": "multisig",
+            "filename": "1-proposeMinter.s.sol"
+        },
+        {
+            "type": "multisig",
+            "filename": "2-executeMinter.s.sol"
+        }
+    ]
+}
