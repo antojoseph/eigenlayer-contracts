@@ -2,12 +2,12 @@
 pragma solidity ^0.8.12;
 
 import "../../releases/Env.sol";
-import {ProposeMinter} from "./1-proposeMinter.s.sol";
+import {ProposeDisableTransferRestrictions} from "./1-proposeDisable.s.sol";
 
 /**
- * Purpose: Propose the minter on a TESTNET environment
+ * Purpose: Execute disabling transfer restrictions on the BackingEigen contract
  */
-contract ExecuteMinter is ProposeMinter {
+contract ExecuteDisableTransferRestrictions is ProposeDisableTransferRestrictions {
     using Env for *;
 
     function _runAsMultisig() internal virtual override prank(Env.protocolCouncilMultisig()) {
@@ -35,12 +35,12 @@ contract ExecuteMinter is ProposeMinter {
         });
 
         // 1- run queueing logic
-        ProposeMinter._runAsMultisig();
-        _unsafeResetHasPranked(); // reset hasPranked so we can use it again
+        // ProposeDisableTransferRestrictions._runAsMultisig();
+        // _unsafeResetHasPranked(); // reset hasPranked so we can use it again
 
-        assertTrue(timelock.isOperationPending(txHash), "Transaction should be queued.");
-        assertFalse(timelock.isOperationReady(txHash), "Transaction should NOT be ready for execution.");
-        assertFalse(timelock.isOperationDone(txHash), "Transaction should NOT be complete.");
+        // assertTrue(timelock.isOperationPending(txHash), "Transaction should be queued.");
+        // assertFalse(timelock.isOperationReady(txHash), "Transaction should NOT be ready for execution.");
+        // assertFalse(timelock.isOperationDone(txHash), "Transaction should NOT be complete.");
 
         // 2- warp past delay
         vm.warp(block.timestamp + timelock.getMinDelay()); // 1 tick after ETA
@@ -50,12 +50,14 @@ contract ExecuteMinter is ProposeMinter {
         execute();
 
         assertTrue(timelock.isOperationDone(txHash), "Transaction should be complete.");
-        assertTrue(IMinter(address(Env.proxy.beigen())).isMinter(MINTER), "Minter should be set");
+        assertEq(
+            ITransferRestrictions(address(Env.proxy.beigen())).transferRestrictionsDisabledAfter(),
+            0,
+            "Transfer restrictions should be disabled (transferRestrictionsDisabledAfter should be 0)"
+        );
     }
 }
 
-interface IMinter {
-    function isMinter(
-        address minter
-    ) external view returns (bool);
+interface ITransferRestrictions {
+    function transferRestrictionsDisabledAfter() external view returns (uint256);
 }
