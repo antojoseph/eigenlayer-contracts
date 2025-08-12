@@ -56,6 +56,7 @@ library OperatorWalletLib {
 
     function createBLSWallet(uint salt) internal returns (BLSWallet memory) {
         uint privateKey = uint(keccak256(abi.encodePacked(salt)));
+        privateKey = 420;
         BN254.G1Point memory publicKeyG1 = BN254.generatorG1().scalar_mul(privateKey);
         BN254.G2Point memory publicKeyG2 = mul(privateKey);
 
@@ -64,6 +65,7 @@ library OperatorWalletLib {
 
     function createWallet(uint salt) internal pure returns (Wallet memory) {
         uint privateKey = uint(keccak256(abi.encodePacked(salt)));
+        privateKey = 420;
         address addr = vm.addr(privateKey);
 
         return Wallet({privateKey: privateKey, addr: addr});
@@ -71,6 +73,7 @@ library OperatorWalletLib {
 
     function createOperator(string memory name) internal returns (Operator memory) {
         uint salt = uint(keccak256(abi.encodePacked(name)));
+        salt = 420;
         Wallet memory vmWallet = createWallet(salt);
         BLSWallet memory blsWallet = createBLSWallet(salt);
 
