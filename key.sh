@@ -73,7 +73,8 @@ import (
         smtypes "github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
         smithyhttp "github.com/aws/smithy-go/transport/http"
         "github.com/mdlayher/vsock"
-        "golang.org/x/crypto/bn256"
+        "github.com/consensys/gnark-crypto/ecc/bn254"
+        "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 )
 
 const parentCID = uint32(3)
@@ -119,12 +120,16 @@ func vsockHTTPClient(proxyPort uint32, serverName string) *http.Client {
         return &http.Client{Transport: tr, Timeout: 30 * time.Second}
 }
 
-func randScalarFr() (*big.Int, []byte) {
+func randScalarFr() (*fr.Element, []byte) {
         for {
                 b := make([]byte, 32)
                 if _, err := rand.Read(b); err != nil { log.Fatalf("rand: %v", err) }
                 k := new(big.Int).SetBytes(b)
-                if k.Sign() != 0 && k.Cmp(rOrder) < 0 { return k, b }
+                if k.Sign() != 0 && k.Cmp(rOrder) < 0 { 
+                        var frScalar fr.Element
+                        frScalar.SetBigInt(k)
+                        return &frScalar, b 
+                }
         }
 }
 
@@ -152,10 +157,20 @@ func main() {
 
         client := sm.NewFromConfig(cfg)
 
-        // BN254 keypair
-        k, raw := randScalarFr()
-        pub := new(bn256.G1).ScalarBaseMult(k)
-        pubBytes := pub.Marshal()
+        // BN254 keypair using consensys/gnark-crypto (EigenLayer compatible)
+        frScalar, raw := randScalarFr()
+        
+        // Generate G1 public key: privKey * G1_generator(1,2)
+        var g1Gen bn254.G1Affine
+        g1Gen.X.SetString("1")
+        g1Gen.Y.SetString("2")
+        var pubkeyG1 bn254.G1Affine
+        pubkeyG1.ScalarMultiplication(&g1Gen, frScalar.BigInt(new(big.Int)))
+        
+        // Serialize G1 public key
+        pubBytes := pubkeyG1.Marshal()
+        
+        // Create payload in original format
         payload := `{"curve":"bn254","priv_hex":"0x` + hex.EncodeToString(raw) + `","pub_hex":"0x` + hex.EncodeToString(pubBytes) + `"}`
 
         // Create or update
@@ -200,7 +215,7 @@ require (
   github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.32.6
   github.com/aws/smithy-go v1.22.1
   github.com/mdlayher/vsock v1.2.1
-  golang.org/x/crypto v0.26.0
+  github.com/consensys/gnark-crypto v0.18.0
 )
 EOF
 
