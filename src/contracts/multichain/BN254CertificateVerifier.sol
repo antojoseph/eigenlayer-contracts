@@ -267,7 +267,7 @@ contract BN254CertificateVerifier is
         BN254.G1Point memory signerApk = ctx.operatorSetInfo.aggregatePubkey.plus(ctx.nonSignerApk.negate());
 
         (bool pairingSuccessful, bool signatureValid) =
-            trySignatureVerification(cert.messageHash, signerApk, cert.apk, cert.signature);
+            trySignatureVerification(calculateCertificateDigest(cert.referenceTimestamp, cert.messageHash), signerApk, cert.apk, cert.signature);
 
         require(pairingSuccessful && signatureValid, VerificationFailed());
     }
@@ -396,5 +396,13 @@ contract BN254CertificateVerifier is
     ) external view returns (BN254OperatorSetInfo memory) {
         bytes32 operatorSetKey = operatorSet.key();
         return _operatorSetInfos[operatorSetKey][referenceTimestamp];
+    }
+
+    ///@inheritdoc IBN254CertificateVerifier
+    function calculateCertificateDigest(
+        uint32 referenceTimestamp,
+        bytes32 messageHash
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(BN254_CERTIFICATE_TYPEHASH, referenceTimestamp, messageHash));
     }
 }

@@ -284,6 +284,16 @@ contract OperatorTableUpdater is
     }
 
     /// @inheritdoc IOperatorTableUpdater
+    function getGlobalTableUpdateSignableDigest(
+        bytes32 globalTableRoot,
+        uint32 referenceTimestamp,
+        uint32 referenceBlockNumber
+    ) public view returns (bytes32) {
+        bytes32 messageHash = getGlobalTableUpdateMessageHash(globalTableRoot, referenceTimestamp, referenceBlockNumber);
+        return bn254CertificateVerifier.calculateCertificateDigest(GENERATOR_REFERENCE_TIMESTAMP, messageHash);
+    }
+
+    /// @inheritdoc IOperatorTableUpdater
     function getGeneratorReferenceTimestamp() external view returns (uint32) {
         return IBaseCertificateVerifier(address(bn254CertificateVerifier)).latestReferenceTimestamp(_generator);
     }

@@ -278,6 +278,19 @@ interface IOperatorTableUpdater is
     ) external view returns (bytes32);
 
     /**
+     * @notice Get the signable digest for a global table root update
+     * @param globalTableRoot the global table root
+     * @param referenceTimestamp the reference timestamp
+     * @param referenceBlockNumber the reference block number
+     * @return The signable digest for a global table root update. This is the hashed value that must be signed by the generator
+     */
+    function getGlobalTableUpdateSignableDigest(
+        bytes32 globalTableRoot,
+        uint32 referenceTimestamp,
+        uint32 referenceBlockNumber
+    ) external view returns (bytes32);
+
+    /**
      * @notice Get the reference timestamp of the generator
      * @return The reference timestamp of the generator
      * @dev The `Generator's` referenceTimestamp is hardcoded to 1. See `GENERATOR_REFERENCE_TIMESTAMP` in `OperatorTableUpdaterStorage.sol`
