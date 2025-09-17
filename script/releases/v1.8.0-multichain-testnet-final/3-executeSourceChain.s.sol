@@ -4,7 +4,6 @@ pragma solidity ^0.8.12;
 import "../Env.sol";
 import {QueueSourceChain} from "./2-queueSourceChain.s.sol";
 import {Encode} from "zeus-templates/utils/Encode.sol";
-import {console} from "forge-std/console.sol";
 
 /// @notice Executes the upgrade for v1.7.0 multichain testnet final
 contract ExecuteSourceChain is QueueSourceChain {

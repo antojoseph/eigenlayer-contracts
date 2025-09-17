@@ -2,7 +2,6 @@
 pragma solidity ^0.8.12;
 
 import {DeploySourceChain} from "./1-deploySourceChain.s.sol";
-import {CrosschainDeployLib} from "script/releases/CrosschainDeployLib.sol";
 import {DeployDestinationChainProxies} from "./2-deployDestinationChainProxies.s.sol";
 import "../Env.sol";
 

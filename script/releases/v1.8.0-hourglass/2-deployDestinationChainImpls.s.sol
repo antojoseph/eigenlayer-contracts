@@ -3,7 +3,6 @@ pragma solidity ^0.8.12;
 
 import {EOADeployer} from "zeus-templates/templates/EOADeployer.sol";
 import {DeployDestinationChainProxies} from "./1-deployDestinationChainProxies.s.sol";
-import {CrosschainDeployLib} from "script/releases/CrosschainDeployLib.sol";
 import "../Env.sol";
 
 /**
