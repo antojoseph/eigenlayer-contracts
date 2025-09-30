@@ -354,19 +354,18 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         delegationManagerImplementation = new DelegationManager(
             strategyManager,
             eigenPodManager,
-            IAllocationManager(address(allocationManager)),
+            allocationManager,
             eigenLayerPauserReg,
             permissionController,
             DELEGATION_MANAGER_MIN_WITHDRAWAL_DELAY_BLOCKS,
             version
         );
-        strategyManagerImplementation =
-            new StrategyManager(IAllocationManager(address(allocationManager)), delegationManager, eigenLayerPauserReg, version);
+        strategyManagerImplementation = new StrategyManager(allocationManager, delegationManager, eigenLayerPauserReg, version);
         rewardsCoordinatorImplementation = new RewardsCoordinator(
             IRewardsCoordinatorTypes.RewardsCoordinatorConstructorParams({
                 delegationManager: delegationManager,
                 strategyManager: strategyManager,
-                allocationManager: IAllocationManager(address(allocationManager)),
+                allocationManager: allocationManager,
                 pauserRegistry: eigenLayerPauserReg,
                 permissionController: permissionController,
                 CALCULATION_INTERVAL_SECONDS: REWARDS_COORDINATOR_CALCULATION_INTERVAL_SECONDS,
@@ -390,7 +389,7 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         // TODO - need to update ExistingDeploymentParser
 
         // multichain
-        keyRegistrarImplementation = new KeyRegistrar(permissionController, IAllocationManager(address(allocationManager)), "9.9.9");
+        keyRegistrarImplementation = new KeyRegistrar(permissionController, allocationManager, "9.9.9");
     }
 
     function _upgradeProxies() public noTracing {
