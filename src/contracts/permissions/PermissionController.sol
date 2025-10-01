@@ -4,8 +4,10 @@ pragma solidity ^0.8.27;
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "../mixins/SemVerMixin.sol";
 import "./PermissionControllerStorage.sol";
+import "../libraries/OperatorSetLib.sol";
 
 contract PermissionController is Initializable, SemVerMixin, PermissionControllerStorage {
+    using OperatorSetLib for OperatorSet;
     using EnumerableSet for *;
 
     modifier onlyAdmin(
@@ -125,6 +127,52 @@ contract PermissionController is Initializable, SemVerMixin, PermissionControlle
         emit AppointeeRemoved(account, appointee, target, selector);
     }
 
+    /// @inheritdoc IPermissionController
+    function setOperatorSetAppointee(
+        OperatorSet calldata operatorSet,
+        address appointee,
+        address target,
+        bytes4 selector
+    ) external onlyAdmin(operatorSet.avs) {
+        AccountPermissions storage permissions = _permissions[operatorSet.avs];
+
+        bytes32 targetSelector = _encodeTargetSelector(target, selector);
+        require(!permissions.operatorSetAppointeePermissions[appointee][operatorSet.id].contains(targetSelector), AppointeeAlreadySet());
+
+        // Add the appointee to the account's permissions
+        permissions.operatorSetAppointeePermissions[appointee][operatorSet.id].add(targetSelector);
+        permissions.operatorSetPermissionAppointees[targetSelector][operatorSet.id].add(appointee);
+        emit OperatorSetAppointeeSet(operatorSet, appointee, target, selector);
+    }
+
+    /// @inheritdoc IPermissionController
+    function removeOperatorSetAppointee(
+        OperatorSet calldata operatorSet,
+        address appointee,
+        address target,
+        bytes4 selector
+    ) external onlyAdmin(operatorSet.avs) {
+        AccountPermissions storage permissions = _permissions[operatorSet.avs];
+
+        bytes32 targetSelector = _encodeTargetSelector(target, selector);
+        require(permissions.operatorSetAppointeePermissions[appointee][operatorSet.id].contains(targetSelector), AppointeeNotSet());
+
+        // Remove the appointee from the account's permissions
+        permissions.operatorSetAppointeePermissions[appointee][operatorSet.id].remove(targetSelector);
+        permissions.operatorSetPermissionAppointees[targetSelector][operatorSet.id].remove(appointee);
+        emit OperatorSetAppointeeRemoved(operatorSet, appointee, target, selector);
+    }
+
+    /// @inheritdoc IPermissionController
+    function becomeOperatorSetPermission(
+        OperatorSet calldata operatorSet,
+        address target,
+        bytes4 selector
+    ) external onlyAdmin(operatorSet.avs) {
+        AccountPermissions storage permissions = _permissions[operatorSet.avs];
+        permissions.operatorSetTargetSelectors.add(_encodeTargetSelector(target, selector));
+    }
+
     /**
      *
      *                         INTERNAL FUNCTIONS
@@ -198,9 +246,28 @@ contract PermissionController is Initializable, SemVerMixin, PermissionControlle
     }
 
     /// @inheritdoc IPermissionController
-    function canCall(address account, address caller, address target, bytes4 selector) external view returns (bool) {
+    function canCall(address account, address caller, address target, bytes4 selector) public view returns (bool) {
         return isAdmin(account, caller)
             || _permissions[account].appointeePermissions[caller].contains(_encodeTargetSelector(target, selector));
+    }
+
+    function canCall(
+        OperatorSet calldata operatorSet,
+        address caller,
+        address target,
+        bytes4 selector
+    ) external view returns (bool) {
+        address account = operatorSet.avs;
+        // If the avs has opted for operatorSet-specific permissions, check the permissions on the given operatorSet
+        if (isOperatorSetPermission(account, target, selector)) {
+            return _permissions[account].operatorSetAppointeePermissions[caller][operatorSet.id].contains(
+                _encodeTargetSelector(target, selector)
+            );
+        }
+        // Else, check normal permissions
+        else {
+            return canCall(account, caller, target, selector);
+        }
     }
 
     /// @inheritdoc IPermissionController
@@ -226,5 +293,9 @@ contract PermissionController is Initializable, SemVerMixin, PermissionControlle
     function getAppointees(address account, address target, bytes4 selector) external view returns (address[] memory) {
         bytes32 targetSelector = _encodeTargetSelector(target, selector);
         return _permissions[account].permissionAppointees[targetSelector].values();
+    }
+
+    function isOperatorSetPermission(address account, address target, bytes4 selector) public view returns (bool) {
+        return _permissions[account].operatorSetTargetSelectors.contains(_encodeTargetSelector(target, selector));
     }
 }

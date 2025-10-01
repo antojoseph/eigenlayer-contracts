@@ -2,6 +2,7 @@
 pragma solidity ^0.8.27;
 
 import "./ISemVerMixin.sol";
+import {OperatorSet} from "../libraries/OperatorSetLib.sol";
 
 interface IPermissionControllerErrors {
     /// @notice Thrown when a non-admin caller attempts to perform an admin-only action.
@@ -28,6 +29,21 @@ interface IPermissionControllerEvents {
 
     /// @notice Emitted when an appointee's permission to handle function calls for an account is revoked.
     event AppointeeRemoved(address indexed account, address indexed appointee, address target, bytes4 selector);
+
+    /// @notice Emitted when an appointee is set for an operator set to handle specific function calls.
+    event OperatorSetAppointeeSet(
+        OperatorSet indexed operatorSet, address indexed appointee, address target, bytes4 selector
+    );
+
+    /// @notice Emitted when an appointee's permission to handle function calls for an operator set is revoked.
+    event OperatorSetAppointeeRemoved(
+        OperatorSet indexed operatorSet, address indexed appointee, address target, bytes4 selector
+    );
+
+    /// @notice Emitted when an operator set becomes a permission for an account.
+    event OperatorSetPermissionSet(
+        OperatorSet indexed operatorSet, address target, bytes4 selector
+    );
 
     /// @notice Emitted when an address is set as a pending admin for an account, requiring acceptance.
     event PendingAdminAdded(address indexed account, address admin);
@@ -79,6 +95,14 @@ interface IPermissionController is IPermissionControllerErrors, IPermissionContr
     function removeAdmin(address account, address admin) external;
 
     /**
+     * @notice Makes an permission at an operatorSet level for an account.
+     * @param operatorSet The operator set to make a permission for.
+     * @param target The contract address to make a permission for.
+     * @param selector The function selector to make a permission for.
+     */
+    function becomeOperatorSetPermission(OperatorSet calldata operatorSet, address target, bytes4 selector) external;
+
+    /**
      * @notice Sets an appointee who can call specific functions on behalf of an account.
      * @param account The account to set the appointee for.
      * @param appointee The address to be given permission.
@@ -97,6 +121,34 @@ interface IPermissionController is IPermissionControllerErrors, IPermissionContr
      * @dev Only an admin of the account can remove appointees.
      */
     function removeAppointee(address account, address appointee, address target, bytes4 selector) external;
+
+    /**
+     * @notice Sets an appointee who can call specific functions on behalf of an operator set.
+     * @param operatorSet The operator set to set the appointee for.
+     * @param appointee The address to be given permission.
+     * @param target The contract address the appointee can interact with.
+     * @param selector The function selector the appointee can call.
+     */
+    function setOperatorSetAppointee(
+        OperatorSet calldata operatorSet,
+        address appointee,
+        address target,
+        bytes4 selector
+    ) external;
+
+    /**
+     * @notice Removes an appointee's permission to call a specific function for an operator set.
+     * @param operatorSet The operator set to remove the appointee from.
+     * @param appointee The appointee address to remove.
+     * @param target The contract address to remove permissions for.
+     * @param selector The function selector to remove permissions for.
+     */
+    function removeOperatorSetAppointee(
+        OperatorSet calldata operatorSet,
+        address appointee,
+        address target,
+        bytes4 selector
+    ) external;
 
     /**
      * @notice Checks if a given address is an admin of an account.
@@ -148,6 +200,20 @@ interface IPermissionController is IPermissionControllerErrors, IPermissionContr
     function canCall(address account, address caller, address target, bytes4 selector) external returns (bool);
 
     /**
+     * @notice Checks if a caller has permission to call a specific function for an operator set.
+     * @param operatorSet The operator set to check permissions for.
+     * @param caller The address attempting to make the call.
+     * @param target The contract address being called.
+     * @param selector The function selector being called.
+     * @dev If the target/selector pair is an operatorSet permission, then the caller must be an appointee of the operator set. Else, 
+     *      this function assumes the same permissions of the account globally - see `canCall`. 
+     * @dev Be mindful that upgrades to the contract may invalidate the appointee's permissions.
+     * This is only possible if a function's selector changes (e.g. if a function's parameters are modified).
+     * @return Returns true if the caller has permission, false otherwise.
+     */
+    function canCall(OperatorSet calldata operatorSet, address caller, address target, bytes4 selector) external returns (bool);
+
+    /**
      * @notice Retrieves all permissions granted to an appointee for a given account.
      * @param account The account to check appointee permissions for.
      * @param appointee The appointee address to check.
@@ -167,4 +233,13 @@ interface IPermissionController is IPermissionControllerErrors, IPermissionContr
      * @return An array of appointee addresses.
      */
     function getAppointees(address account, address target, bytes4 selector) external returns (address[] memory);
+
+    /**
+     * @notice Retrieves all appointees that can call a specific function for an operator set.
+     * @param operatorSet The operator set to get appointees for.
+     * @param target The contract address to check.
+     * @param selector The function selector to check.
+     * @return An array of appointee addresses.
+     */
+    function getOperatorSetAppointees(OperatorSet calldata operatorSet, address target, bytes4 selector) external returns (address[] memory);
 }

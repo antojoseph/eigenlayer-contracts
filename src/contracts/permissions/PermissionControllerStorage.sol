@@ -18,6 +18,12 @@ abstract contract PermissionControllerStorage is IPermissionController {
         mapping(address appointee => EnumerableSet.Bytes32Set) appointeePermissions;
         /// @notice Mapping from encoded target & selector to the list of appointees
         mapping(bytes32 targetSelector => EnumerableSet.AddressSet) permissionAppointees;
+        /// @notice Mapping from an appointee to the list of encoded target & selectors for an operator set
+        mapping(address appointee => mapping(uint32 operatorSetId => EnumerableSet.Bytes32Set)) operatorSetAppointeePermissions;
+        /// @notice Mapping from encoded target & selector to the list of appointees for an operator set
+        mapping(bytes32 targetSelector => mapping(uint32 operatorSetId => EnumerableSet.AddressSet)) operatorSetPermissionAppointees;
+        /// @notice The list of encoded target & selectors for an operator set
+        EnumerableSet.Bytes32Set operatorSetTargetSelectors;
     }
 
     /// @notice Mapping from an account to its permission
