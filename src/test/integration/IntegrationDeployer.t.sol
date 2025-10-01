@@ -350,6 +350,8 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
                 )
             )
         );
+        allocationManagerViewImplementation =
+            new AllocationManagerView(delegationManager, eigenStrategy, DEALLOCATION_DELAY, ALLOCATION_CONFIGURATION_DELAY);
         permissionControllerImplementation = new PermissionController(version);
         delegationManagerImplementation = new DelegationManager(
             strategyManager,
