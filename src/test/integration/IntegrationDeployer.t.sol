@@ -350,8 +350,6 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
                 )
             )
         );
-        allocationManagerViewImplementation =
-            new AllocationManagerView(delegationManager, eigenStrategy, DEALLOCATION_DELAY, ALLOCATION_CONFIGURATION_DELAY);
         permissionControllerImplementation = new PermissionController(version);
         delegationManagerImplementation = new DelegationManager(
             strategyManager,
@@ -422,11 +420,8 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         eigenLayerProxyAdmin.upgrade(
             ITransparentUpgradeableProxy(payable(address(allocationManager))), address(allocationManagerImplementation)
         );
-        
-        // AllocationManagerView
-        eigenLayerProxyAdmin.upgrade(
-            ITransparentUpgradeableProxy(payable(address(allocationManagerView))), address(allocationManagerViewImplementation)
-        );
+
+        // AllocationManagerView is not a proxy, so no upgrade needed
 
         // AllocationManagerView is not a proxy, so no upgrade needed
 
