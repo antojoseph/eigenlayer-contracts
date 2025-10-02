@@ -422,6 +422,11 @@ abstract contract IntegrationDeployer is ExistingDeploymentParser {
         eigenLayerProxyAdmin.upgrade(
             ITransparentUpgradeableProxy(payable(address(allocationManager))), address(allocationManagerImplementation)
         );
+        
+        // AllocationManagerView
+        eigenLayerProxyAdmin.upgrade(
+            ITransparentUpgradeableProxy(payable(address(allocationManagerView))), address(allocationManagerViewImplementation)
+        );
 
         // AllocationManagerView is not a proxy, so no upgrade needed
 
