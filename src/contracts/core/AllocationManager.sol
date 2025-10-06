@@ -270,6 +270,11 @@ contract AllocationManager is
 
     /// @inheritdoc IAllocationManager
     function createOperatorSets(address avs, CreateSetParams[] calldata params) external checkCanCall(avs) {
+        createOperatorSets(avs, _convertCreateSetParams(params, avs));
+    }
+
+    /// @inheritdoc IAllocationManager
+    function createOperatorSets(address avs, CreateSetParamsV2[] memory params) public checkCanCall(avs) {
         require(_avsRegisteredMetadata[avs], NonexistentAVSMetadata());
         for (uint256 i = 0; i < params.length; i++) {
             _createOperatorSet(avs, params[i], DEFAULT_BURN_ADDRESS);
@@ -279,9 +284,9 @@ contract AllocationManager is
     /// @inheritdoc IAllocationManager
     function createRedistributingOperatorSets(
         address avs,
-        CreateSetParams[] calldata params,
+        CreateSetParamsV2[] memory params,
         address[] calldata redistributionRecipients
-    ) external checkCanCall(avs) {
+    ) public checkCanCall(avs) {
         require(params.length == redistributionRecipients.length, InputArrayLengthMismatch());
         require(_avsRegisteredMetadata[avs], NonexistentAVSMetadata());
         for (uint256 i = 0; i < params.length; i++) {
@@ -290,6 +295,15 @@ contract AllocationManager is
             require(recipient != DEFAULT_BURN_ADDRESS, InvalidRedistributionRecipient());
             _createOperatorSet(avs, params[i], recipient);
         }
+    }
+
+    /// @inheritdoc IAllocationManager
+    function createRedistributingOperatorSets(
+        address avs,
+        CreateSetParams[] calldata params,
+        address[] calldata redistributionRecipients
+    ) external checkCanCall(avs) {
+        createRedistributingOperatorSets(avs, _convertCreateSetParams(params, avs), redistributionRecipients);
     }
 
     /// @inheritdoc IAllocationManager
@@ -350,7 +364,7 @@ contract AllocationManager is
             if (slashers.length == 0) {
                 slasher = operatorSets[i].avs;
             } else {
-            // Else, set the slasher to the first slasher
+                // Else, set the slasher to the first slasher
                 slasher = slashers[0];
             }
 
@@ -489,13 +503,17 @@ contract AllocationManager is
      * @dev If `redistributionRecipient` is address(0), the operator set is considered non-redistributing
      * and slashed funds are sent to the `DEFAULT_BURN_ADDRESS`.
      * @dev Providing `BEACONCHAIN_ETH_STRAT` as a strategy will revert since it's not currently supported.
+     * @dev The address that can slash the operatorSet is the `avs` address.
      */
     function _createOperatorSet(
         address avs,
-        CreateSetParams calldata params,
+        CreateSetParamsV2 memory params,
         address redistributionRecipient
     ) internal {
         OperatorSet memory operatorSet = OperatorSet(avs, params.operatorSetId);
+
+        // Ensure that the slasher address is not the 0 address
+        require(params.slasher != address(0), InputAddressZero());
 
         // Create the operator set, ensuring it does not already exist.
         require(_operatorSets[avs].add(operatorSet.id), InvalidOperatorSet());
@@ -766,6 +784,24 @@ contract AllocationManager is
 
         _slashers[operatorSet.key()] = params;
         emit SlasherUpdated(operatorSet, slasher, effectBlock);
+    }
+
+    /**
+     * @notice Helper function to convert CreateSetParams to CreateSetParamsV2
+     * @param params The parameters to convert
+     * @param avs The AVS address that owns the operator sets, which will be the slasher
+     * @return The converted parameters, into CreateSetParamsV2 format
+     * @dev The slasher will be set to the AVS address
+     */
+    function _convertCreateSetParams(
+        CreateSetParams[] calldata params,
+        address avs
+    ) internal pure returns (CreateSetParamsV2[] memory) {
+        CreateSetParamsV2[] memory createSetParams = new CreateSetParamsV2[](params.length);
+        for (uint256 i = 0; i < params.length; i++) {
+            createSetParams[i] = CreateSetParamsV2(params[i].operatorSetId, params[i].strategies, avs);
+        }
+        return createSetParams;
     }
 
     /**

@@ -185,9 +185,19 @@ interface IAllocationManagerTypes {
      * @notice Parameters used by an AVS to create new operator sets
      * @param operatorSetId the id of the operator set to create
      * @param strategies the strategies to add as slashable to the operator set
-     * @param slasher the address that will be the slasher for the operator set
      */
     struct CreateSetParams {
+        uint32 operatorSetId;
+        IStrategy[] strategies;
+    }
+    /**
+     * @notice Parameters used by an AVS to create new operator sets
+     * @param operatorSetId the id of the operator set to create
+     * @param strategies the strategies to add as slashable to the operator set
+     * @param slasher the address that will be the slasher for the operator set
+     */
+
+    struct CreateSetParamsV2 {
         uint32 operatorSetId;
         IStrategy[] strategies;
         address slasher;
@@ -361,8 +371,31 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
 
     /**
      * @notice Allows an AVS to create new operator sets, defining strategies that the operator set uses
+     * @dev Upon creation, the address that can slash the operatorSet is the `avs` address. If you would like to use a different address,
+     *      use the `createOperatorSets` method which takes in `CreateSetParamsV2` instead.
      */
     function createOperatorSets(address avs, CreateSetParams[] calldata params) external;
+
+    /**
+     * @notice Allows an AVS to create new operator sets, defining strategies that the operator set uses
+     */
+    function createOperatorSets(address avs, CreateSetParamsV2[] calldata params) external;
+
+    /**
+     * @notice Allows an AVS to create new Redistribution operator sets.
+     * @param avs The AVS creating the new operator sets.
+     * @param params An array of operator set creation parameters.
+     * @param redistributionRecipients An array of addresses that will receive redistributed funds when operators are slashed.
+     * @dev Same logic as `createOperatorSets`, except `redistributionRecipients` corresponding to each operator set are stored.
+     *      Additionally, emits `RedistributionOperatorSetCreated` event instead of `OperatorSetCreated` for each created operator set.
+     * @dev The address that can slash the operatorSet is the `avs` address. If you would like to use a different address,
+     *      use the `createOperatorSets` method which takes in `CreateSetParamsV2` instead.
+     */
+    function createRedistributingOperatorSets(
+        address avs,
+        CreateSetParams[] calldata params,
+        address[] calldata redistributionRecipients
+    ) external;
 
     /**
      * @notice Allows an AVS to create new Redistribution operator sets.
@@ -374,7 +407,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      */
     function createRedistributingOperatorSets(
         address avs,
-        CreateSetParams[] calldata params,
+        CreateSetParamsV2[] calldata params,
         address[] calldata redistributionRecipients
     ) external;
 
@@ -406,7 +439,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      * @param operatorSet the operator set to update the slasher for
      * @param slasher the new slasher
      * @dev The new slasher will take effect in DEALLOCATION_DELAY blocks
-     * @dev Reverts for: 
+     * @dev Reverts for:
      *      - InvalidOperatorSet: The operator set does not exist
      *      - InvalidCaller: The caller cannot update the slasher for the operator set
      */
@@ -418,11 +451,13 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      * @dev If there is no slasher set, the AVS address will be set as the slasher
      * @dev If there is a slasher set, the first slasher will be set as the slasher
      * @dev This function can only be called once for a given operatorSet
-     * @dev Reverts for: 
+     * @dev Reverts for:
      *      - InvalidOperatorSet: The operator set does not exist
      *      - OperatorSetAlreadyMigrated: The operator set has already been migrated
      */
-    function migrateSlasher(OperatorSet[] memory operatorSets) external;
+    function migrateSlasher(
+        OperatorSet[] memory operatorSets
+    ) external;
 
     /**
      *
