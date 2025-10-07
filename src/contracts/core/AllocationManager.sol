@@ -65,14 +65,14 @@ contract AllocationManager is
         address avs,
         SlashingParams calldata params
     ) external onlyWhenNotPaused(PAUSED_OPERATOR_SLASHING) returns (uint256, uint256[] memory) {
-        // Caller must be the slasher for the operator set
-        require(msg.sender == getSlasher(OperatorSet(avs, params.operatorSetId)), InvalidCaller());
-
         // Check that the operator set exists and the operator is registered to it
         OperatorSet memory operatorSet = OperatorSet(avs, params.operatorSetId);
         require(params.strategies.length == params.wadsToSlash.length, InputArrayLengthMismatch());
         require(_operatorSets[operatorSet.avs].contains(operatorSet.id), InvalidOperatorSet());
         require(isOperatorSlashable(params.operator, operatorSet), OperatorNotSlashable());
+
+        // Assert that the caller is the slasher for the operator set
+        require(msg.sender == getSlasher(operatorSet), InvalidCaller());
 
         return _slashOperator(params, operatorSet);
     }
@@ -338,9 +338,9 @@ contract AllocationManager is
     }
 
     /// @inheritdoc IAllocationManager
-    function updateSlasher(OperatorSet memory operatorSet, address slasher) external checkCanCall(operatorSet.avs) {
+    function setSlasher(OperatorSet memory operatorSet, address slasher) external checkCanCall(operatorSet.avs) {
         require(_operatorSets[operatorSet.avs].contains(operatorSet.id), InvalidOperatorSet());
-        _updateSlasher({operatorSet: operatorSet, slasher: slasher, instantEffectBlock: false});
+        _setSlasher({operatorSet: operatorSet, slasher: slasher, instantEffectBlock: false});
     }
 
     /// @inheritdoc IAllocationManager
@@ -372,7 +372,7 @@ contract AllocationManager is
                 slasher = slashers[0];
             }
 
-            _updateSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
+            _setSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
         }
     }
 
@@ -529,7 +529,7 @@ contract AllocationManager is
         }
 
         // Update the slasher for the operator set
-        _updateSlasher({operatorSet: operatorSet, slasher: params.slasher, instantEffectBlock: true});
+        _setSlasher({operatorSet: operatorSet, slasher: params.slasher, instantEffectBlock: true});
     }
 
     /**
@@ -775,14 +775,19 @@ contract AllocationManager is
      * @param instantEffectBlock Whether the new slasher will take effect immediately. Instant if on operatorSet creation or migration function.
      *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `updateSlasher` function.
      */
-    function _updateSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
-        SlasherParams memory params = _slashers[operatorSet.key()];
-
+    function _setSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
         // Ensure that the slasher address is not the 0 address, which is used to denote if the slasher is not set
         require(slasher != address(0), InputAddressZero());
 
-        params.pendingSlasher = slasher;
+        SlasherParams memory params = _slashers[operatorSet.key()];
 
+        // If there is a pending slasher that can be applied, apply it
+        if (params.effectBlock != 0 && block.number >= params.effectBlock) {
+            params.slasher = params.pendingSlasher;
+        }
+
+        // Set the pending parameters
+        params.pendingSlasher = slasher;
         if (instantEffectBlock) {
             params.effectBlock = uint32(block.number);
         } else {

@@ -443,7 +443,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      *      - InvalidOperatorSet: The operator set does not exist
      *      - InvalidCaller: The caller cannot update the slasher for the operator set
      */
-    function updateSlasher(OperatorSet memory operatorSet, address slasher) external;
+    function setSlasher(OperatorSet memory operatorSet, address slasher) external;
 
     /**
      * @notice Allows any address to migrate the slasher from the permission controller to the ALM
