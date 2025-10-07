@@ -1134,6 +1134,24 @@ contract AllocationManager is
     }
 
     /// @inheritdoc IAllocationManager
+    function getPendingSlasher(
+        OperatorSet memory operatorSet
+    ) public view returns (address, uint32) {
+        // Initialize the pending slasher and effect block to the address(0) and 0 respectively
+        address pendingSlasher;
+        uint32 effectBlock;
+
+        // If there is a pending slasher, set it
+        SlasherParams memory params = _slashers[operatorSet.key()];
+        if (block.number < params.effectBlock) {
+            pendingSlasher = params.pendingSlasher;
+            effectBlock = params.effectBlock;
+        }
+
+        return (pendingSlasher, effectBlock);
+    }
+
+    /// @inheritdoc IAllocationManager
     function getRedistributionRecipient(
         OperatorSet memory operatorSet
     ) public view returns (address) {

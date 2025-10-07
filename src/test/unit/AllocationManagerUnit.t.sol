@@ -4169,7 +4169,7 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSetsV2 is Alloca
 
 contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IPermissionControllerErrors {
     /// -----------------------------------------------------------------------
-    /// setSlasher() + getSlasher()
+    /// setSlasher() + getSlasher() + getPendingSlasher()
     /// -----------------------------------------------------------------------
 
     /// @dev Thrown when the caller is not allowed to call a function on behalf of an account.
@@ -4192,63 +4192,83 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
         address slasher = r.Address();
         cheats.prank(defaultAVS);
         allocationManager.setSlasher(defaultOperatorSet, slasher);
+        uint32 effectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
 
-        // Warp to the allocation config delay - the slasher should still be the defaultAVS
+        // Warp to the allocation config delay - the slasher should still be the defaultAVS and the pending slasher should be the new slasher
         cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY);
         assertEq(allocationManager.getSlasher(defaultOperatorSet), defaultAVS, "slasher should still be the defaultAVS");
+        (address returnedPendingSlasher, uint32 returnedEffectBlock) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(returnedPendingSlasher, slasher, "pending slasher should be the new slasher");
+        assertEq(returnedEffectBlock, effectBlock, "effect block should be the allocation config delay");
 
-        // Warp to the next block - the slasher should be the new slasher
+        // Warp to the next block - the slasher should be the new slasher and the pending slasher should be the 0 address
         cheats.roll(block.number + 1);
         assertEq(allocationManager.getSlasher(defaultOperatorSet), slasher, "slasher should be the new slasher");
+        (returnedPendingSlasher, returnedEffectBlock) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(returnedPendingSlasher, address(0), "pending slasher should be the 0 address");
+        assertEq(returnedEffectBlock, 0, "effect block should be 0");
     }
 
     function testFuzz_setSlasher(Randomness r) public rand(r) {
         address slasher = r.Address();
 
-        // Set delay
+        // Set slasher
         cheats.expectEmit(true, true, true, true, address(allocationManager));
-        emit SlasherUpdated(defaultOperatorSet, slasher, uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1));
+        uint32 effectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
+        emit SlasherUpdated(defaultOperatorSet, slasher, effectBlock);
         cheats.prank(defaultAVS);
         allocationManager.setSlasher(defaultOperatorSet, slasher);
 
         // Check values after set
         (address returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
         assertEq(returnedSlasher, defaultAVS, "slasher should still be the defaultAVS");
+        (address returnedPendingSlasher, uint32 returnedEffectBlock) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(returnedPendingSlasher, slasher, "pending slasher should be the new slasher");
+        assertEq(returnedEffectBlock, effectBlock, "effect block should be the allocation config delay");
 
         // Warp to effect block
-        cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
+        cheats.roll(effectBlock);
 
         // Check values after config delay
         (returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
         assertEq(returnedSlasher, slasher, "slasher should be the new slasher");
+        (returnedPendingSlasher, returnedEffectBlock) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(returnedPendingSlasher, address(0), "pending slasher should be the 0 address");
+        assertEq(returnedEffectBlock, 0, "effect block should be 0");
     }
 
-    function test_fuzz_setDelay_multipleTimesWithinConfigurationDelay(Randomness r) public rand(r) {
+    function test_fuzz_setSlasher_multipleTimesWithinConfigurationDelay(Randomness r) public rand(r) {
         address firstSlasher = r.Address();
         address secondSlasher = r.Address();
 
-        // Set delay
+        // Set slasher
         cheats.prank(defaultAVS);
         allocationManager.setSlasher(defaultOperatorSet, firstSlasher);
+        (address pendingSlasher,) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(pendingSlasher, firstSlasher, "pending slasher should be the first slasher");
 
         // Warp just before effect block
         cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY);
 
         // Set slasher again
         cheats.expectEmit(true, true, true, true, address(allocationManager));
-        emit SlasherUpdated(defaultOperatorSet, secondSlasher, uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1));
+        uint32 secondSlasherEffectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
+        emit SlasherUpdated(defaultOperatorSet, secondSlasher, secondSlasherEffectBlock);
         cheats.prank(defaultAVS);
         allocationManager.setSlasher(defaultOperatorSet, secondSlasher);
 
         // Warp to effect block of first slasher
         cheats.roll(block.number + 1);
 
-        // Assert that the delay is still not set
+        // Assert that the slasher is still not set
         (address returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
         assertEq(returnedSlasher, defaultAVS, "returned slasher should still be the defaultAVS");
+        (address returnedPendingSlasher, uint32 returnedEffectBlock) = allocationManager.getPendingSlasher(defaultOperatorSet);
+        assertEq(returnedPendingSlasher, secondSlasher, "pending slasher should be the second slasher");
+        assertEq(returnedEffectBlock, secondSlasherEffectBlock, "effect block should be the allocation config delay");
 
         // Warp to effect block of second slasher
-        cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
+        cheats.roll(secondSlasherEffectBlock);
         (returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
         assertEq(returnedSlasher, secondSlasher, "slasher not set");
     }

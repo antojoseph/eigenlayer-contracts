@@ -732,6 +732,16 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
     ) external view returns (address);
 
     /**
+     * @notice Returns pending slasher for a given operator set.
+     * @param operatorSet The operator set to query.
+     * @return pendingSlasher The pending slasher for the operator set. This value is 0 if there is no pending slasher.
+     * @return effectBlock The block at which the pending slasher will take effect. This value is 0 if there is no pending slasher.
+     */
+    function getPendingSlasher(
+        OperatorSet memory operatorSet
+    ) external view returns (address pendingSlasher, uint32 effectBlock);
+
+    /**
      * @notice Returns the address where slashed funds will be sent for a given operator set.
      * @param operatorSet The Operator Set to query.
      * @return For redistributing Operator Sets, returns the configured redistribution address set during Operator Set creation.
