@@ -83,13 +83,12 @@ interface IAllocationManagerTypes {
      * @param slasher the address that can slash the operator set
      * @param pendingSlasher the address that will become the slasher for the operator set after a delay
      * @param effectBlock the block at which the pending slasher will take effect
-     * @param isMigrated whether the slasher of the operatorSet has been migrated from the permission controller
+     * @dev It is not possible for the slasher to be the 0 address, which is used to denote if the slasher is not set
      */
     struct SlasherParams {
         address slasher;
         address pendingSlasher;
         uint32 effectBlock;
-        bool isMigrated;
     }
 
     /**
@@ -185,6 +184,7 @@ interface IAllocationManagerTypes {
      * @notice Parameters used by an AVS to create new operator sets
      * @param operatorSetId the id of the operator set to create
      * @param strategies the strategies to add as slashable to the operator set
+     * @dev This struct and its associated method will be deprecated in Early Q2 2026
      */
     struct CreateSetParams {
         uint32 operatorSetId;
@@ -448,12 +448,12 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
     /**
      * @notice Allows any address to migrate the slasher from the permission controller to the ALM
      * @param operatorSets the list of operator sets to migrate the slasher for
-     * @dev If there is no slasher set, the AVS address will be set as the slasher
+     * @dev If there is no slasher set or the slasher is the 0 address, the AVS address will be set as the slasher
      * @dev If there is a slasher set, the first slasher will be set as the slasher
-     * @dev This function can only be called once for a given operatorSet
-     * @dev Reverts for:
-     *      - InvalidOperatorSet: The operator set does not exist
-     *      - OperatorSetAlreadyMigrated: The operator set has already been migrated
+     * @dev A migration can only be called once for a given operatorSet
+     * @dev This function does not revert, it will no-op if:
+     *      - The operator set does not exist
+     *      - The operator set has already been migrated
      */
     function migrateSlasher(
         OperatorSet[] memory operatorSets

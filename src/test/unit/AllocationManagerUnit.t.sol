@@ -3771,6 +3771,16 @@ contract AllocationManagerUnitTests_createOperatorSets is AllocationManagerUnitT
         allocationManager.createOperatorSets(avs, CreateSetParams(defaultOperatorSet.id, defaultStrategies).toArray());
     }
 
+    function testRevert_createOperatorSets_ZeroSlasherAddress() public {
+        address avs = address(0);
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.createOperatorSets(avs, CreateSetParams(defaultOperatorSet.id, defaultStrategies).toArray());
+    }
+
     function testFuzz_createOperatorSets_Correctness(Randomness r) public rand(r) {
         address avs = r.Address();
         uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
@@ -3790,6 +3800,8 @@ contract AllocationManagerUnitTests_createOperatorSets is AllocationManagerUnitT
                 cheats.expectEmit(true, true, true, true, address(allocationManager));
                 emit StrategyAddedToOperatorSet(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].strategies[j]);
             }
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherUpdated(OperatorSet(avs, createSetParams[i].operatorSetId), avs, uint32(block.number));
         }
 
         cheats.prank(avs);
@@ -3807,6 +3819,79 @@ contract AllocationManagerUnitTests_createOperatorSets is AllocationManagerUnitT
             }
             assertFalse(allocationManager.isRedistributingOperatorSet(opSet), "should not be redistributing operator set");
             assertEq(allocationManager.getRedistributionRecipient(opSet), DEFAULT_BURN_ADDRESS, "recipient should be default burn address");
+            assertEq(allocationManager.getSlasher(opSet), avs, "should be slasher of set");
+        }
+
+        assertEq(createSetParams.length, allocationManager.getOperatorSetCount(avs), "should be correct number of sets");
+    }
+}
+
+contract AllocationManagerUnitTests_createOperatorSets_v2 is AllocationManagerUnitTests {
+    using ArrayLib for *;
+
+    function testRevert_createOperatorSets_InvalidOperatorSet() public {
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(InvalidOperatorSet.selector);
+        allocationManager.createOperatorSets(defaultAVS, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, defaultAVS).toArray());
+    }
+
+    function testRevert_createOperatorSets_NonexistentAVSMetadata(Randomness r) public rand(r) {
+        address avs = r.Address();
+        cheats.expectRevert(NonexistentAVSMetadata.selector);
+        cheats.prank(avs);
+        allocationManager.createOperatorSets(avs, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, defaultAVS).toArray());
+    }
+
+    function testRevert_createOperatorSets_ZeroSlasherAddress(Randomness r) public rand(r) {
+        address avs = r.Address();
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.createOperatorSets(avs, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, address(0)).toArray());
+    }
+
+    function testFuzz_createOperatorSets_Correctness(Randomness r) public rand(r) {
+        address avs = r.Address();
+        uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
+        uint numStrategies = r.Uint256(1, FUZZ_MAX_STRATS);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        CreateSetParamsV2[] memory createSetParams = new CreateSetParamsV2[](numOpSets);
+
+        for (uint i; i < numOpSets; ++i) {
+            createSetParams[i].operatorSetId = r.Uint32(1, type(uint32).max);
+            createSetParams[i].strategies = r.StrategyArray(numStrategies);
+            createSetParams[i].slasher = r.Address();
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit OperatorSetCreated(OperatorSet(avs, createSetParams[i].operatorSetId));
+            for (uint j; j < numStrategies; ++j) {
+                cheats.expectEmit(true, true, true, true, address(allocationManager));
+                emit StrategyAddedToOperatorSet(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].strategies[j]);
+            }
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherUpdated(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].slasher, uint32(block.number));
+        }
+
+        cheats.prank(avs);
+        allocationManager.createOperatorSets(avs, createSetParams);
+
+        for (uint k; k < numOpSets; ++k) {
+            OperatorSet memory opSet = OperatorSet(avs, createSetParams[k].operatorSetId);
+            assertTrue(allocationManager.isOperatorSet(opSet), "should be operator set");
+            IStrategy[] memory strategiesInSet = allocationManager.getStrategiesInOperatorSet(opSet);
+            assertEq(strategiesInSet.length, numStrategies, "strategiesInSet length should be numStrategies");
+            for (uint l; l < numStrategies; ++l) {
+                assertTrue(
+                    allocationManager.getStrategiesInOperatorSet(opSet)[l] == createSetParams[k].strategies[l], "should be strat of set"
+                );
+            }
+            assertFalse(allocationManager.isRedistributingOperatorSet(opSet), "should not be redistributing operator set");
+            assertEq(allocationManager.getRedistributionRecipient(opSet), DEFAULT_BURN_ADDRESS, "recipient should be default burn address");
+            assertEq(allocationManager.getSlasher(opSet), createSetParams[k].slasher, "should be slasher of set");
         }
 
         assertEq(createSetParams.length, allocationManager.getOperatorSetCount(avs), "should be correct number of sets");
@@ -3844,7 +3929,7 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSets is Allocati
         );
     }
 
-    function testRevert_createRedistributingOperatorSets_ZeroAddress(Randomness r) public rand(r) {
+    function testRevert_createRedistributingOperatorSets_ZeroRedistributionAddress(Randomness r) public rand(r) {
         address avs = address(0x12345);
         address[] memory redistributionRecipients = new address[](1);
         redistributionRecipients[0] = address(0);
@@ -3874,6 +3959,22 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSets is Allocati
         );
     }
 
+    /// @dev We prank address(0) as the avs to test the zero slasher address
+    function testRevert_createRedistributingOperatorSets_ZeroSlasherAddress() public {
+        address avs = address(0);
+        address[] memory redistributionRecipients = new address[](1);
+        redistributionRecipients[0] = address(0);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.createRedistributingOperatorSets(
+            avs, CreateSetParams(defaultOperatorSet.id, defaultStrategies).toArray(), redistributionRecipients
+        );
+    }
+
     function testFuzz_createRedistributingOperatorSets_Correctness(Randomness r) public rand(r) {
         address avs = r.Address();
         uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
@@ -3898,6 +3999,8 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSets is Allocati
                 cheats.expectEmit(true, true, true, true, address(allocationManager));
                 emit StrategyAddedToOperatorSet(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].strategies[j]);
             }
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherUpdated(OperatorSet(avs, createSetParams[i].operatorSetId), avs, uint32(block.number));
         }
 
         cheats.prank(avs);
@@ -3920,6 +4023,142 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSets is Allocati
                     allocationManager.getStrategiesInOperatorSet(opSet)[l] == createSetParams[k].strategies[l], "should be strat of set"
                 );
             }
+
+            assertEq(allocationManager.getSlasher(opSet), avs, "should be slasher of set");
+        }
+
+        assertEq(createSetParams.length, allocationManager.getOperatorSetCount(avs), "should be correct number of sets");
+    }
+}
+
+contract AllocationManagerUnitTests_createRedistributingOperatorSetsV2 is AllocationManagerUnitTests {
+    using ArrayLib for *;
+
+    function testRevert_createRedistributingOperatorSets_InvalidOperatorSet() public {
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(InvalidOperatorSet.selector);
+        allocationManager.createRedistributingOperatorSets(
+            defaultAVS, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, defaultAVS).toArray(), address(this).toArray()
+        );
+    }
+
+    function testRevert_createRedistributingOperatorSets_EigenStrategyInRedistributingSet() public {
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(InvalidStrategy.selector);
+        allocationManager.createRedistributingOperatorSets(
+            defaultAVS,
+            CreateSetParamsV2(defaultOperatorSet.id + 1, IStrategy(address(eigenStrategy)).toArray(), defaultAVS).toArray(),
+            address(this).toArray()
+        );
+    }
+
+    function testRevert_createRedistributingOperatorSets_NonexistentAVSMetadata(Randomness r) public rand(r) {
+        address avs = r.Address();
+        address redistributionRecipient = r.Address();
+        cheats.expectRevert(NonexistentAVSMetadata.selector);
+        cheats.prank(avs);
+        allocationManager.createRedistributingOperatorSets(
+            avs, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, defaultAVS).toArray(), redistributionRecipient.toArray()
+        );
+    }
+
+    function testRevert_createRedistributingOperatorSets_ZeroRedistributionAddress(Randomness r) public rand(r) {
+        address avs = address(0x12345);
+        address[] memory redistributionRecipients = new address[](1);
+        redistributionRecipients[0] = address(0);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.createRedistributingOperatorSets(
+            avs, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, defaultAVS).toArray(), redistributionRecipients
+        );
+    }
+
+    function testRevert_createRedistributingOperatorSets_InvalidRedistributionRecipient(Randomness r) public rand(r) {
+        address avs = r.Address();
+        address[] memory redistributionRecipients = new address[](1);
+        redistributionRecipients[0] = DEFAULT_BURN_ADDRESS;
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(InvalidRedistributionRecipient.selector);
+        allocationManager.createRedistributingOperatorSets(
+            avs, CreateSetParams(defaultOperatorSet.id, defaultStrategies).toArray(), redistributionRecipients
+        );
+    }
+
+    /// @dev We prank address(0) as the avs to test the zero slasher address
+    function testRevert_createRedistributingOperatorSets_ZeroSlasherAddress() public {
+        address avs = address(0);
+        address[] memory redistributionRecipients = new address[](1);
+        redistributionRecipients[0] = address(0);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        cheats.prank(avs);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.createRedistributingOperatorSets(
+            avs, CreateSetParamsV2(defaultOperatorSet.id, defaultStrategies, address(0)).toArray(), redistributionRecipients
+        );
+    }
+
+    function testFuzz_createRedistributingOperatorSets_Correctness(Randomness r) public rand(r) {
+        address avs = r.Address();
+        uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
+        uint numStrategies = r.Uint256(1, FUZZ_MAX_STRATS);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        CreateSetParamsV2[] memory createSetParams = new CreateSetParamsV2[](numOpSets);
+        address[] memory redistributionRecipients = new address[](numOpSets);
+
+        for (uint i; i < numOpSets; ++i) {
+            createSetParams[i].operatorSetId = r.Uint32(1, type(uint32).max);
+            createSetParams[i].strategies = r.StrategyArray(numStrategies);
+            createSetParams[i].slasher = r.Address();
+            redistributionRecipients[i] = r.Address();
+
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit OperatorSetCreated(OperatorSet(avs, createSetParams[i].operatorSetId));
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit RedistributionAddressSet(OperatorSet(avs, createSetParams[i].operatorSetId), redistributionRecipients[i]);
+            for (uint j; j < numStrategies; ++j) {
+                cheats.expectEmit(true, true, true, true, address(allocationManager));
+                emit StrategyAddedToOperatorSet(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].strategies[j]);
+            }
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherUpdated(OperatorSet(avs, createSetParams[i].operatorSetId), createSetParams[i].slasher, uint32(block.number));
+        }
+
+        cheats.prank(avs);
+        allocationManager.createRedistributingOperatorSets(avs, createSetParams, redistributionRecipients);
+
+        for (uint k; k < numOpSets; ++k) {
+            OperatorSet memory opSet = OperatorSet(avs, createSetParams[k].operatorSetId);
+            assertTrue(allocationManager.isOperatorSet(opSet), "should be operator set");
+            assertTrue(allocationManager.isRedistributingOperatorSet(opSet), "should be redistributing operator set");
+            assertEq(
+                allocationManager.getRedistributionRecipient(opSet),
+                redistributionRecipients[k],
+                "should have correct redistribution recipient"
+            );
+
+            IStrategy[] memory strategiesInSet = allocationManager.getStrategiesInOperatorSet(opSet);
+            assertEq(strategiesInSet.length, numStrategies, "strategiesInSet length should be numStrategies");
+            for (uint l; l < numStrategies; ++l) {
+                assertTrue(
+                    allocationManager.getStrategiesInOperatorSet(opSet)[l] == createSetParams[k].strategies[l], "should be strat of set"
+                );
+            }
+
+            assertEq(allocationManager.getSlasher(opSet), createSetParams[k].slasher, "should be slasher of set");
         }
 
         assertEq(createSetParams.length, allocationManager.getOperatorSetCount(avs), "should be correct number of sets");

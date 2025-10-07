@@ -340,8 +340,7 @@ contract AllocationManager is
     /// @inheritdoc IAllocationManager
     function updateSlasher(OperatorSet memory operatorSet, address slasher) external checkCanCall(operatorSet.avs) {
         require(_operatorSets[operatorSet.avs].contains(operatorSet.id), InvalidOperatorSet());
-        uint32 effectBlock = uint32(block.number) + DEALLOCATION_DELAY + 1;
-        _updateSlasher(operatorSet, slasher, effectBlock);
+        _updateSlasher({operatorSet: operatorSet, slasher: slasher, instantEffectBlock: false});
     }
 
     /// @inheritdoc IAllocationManager
@@ -349,29 +348,31 @@ contract AllocationManager is
         OperatorSet[] memory operatorSets
     ) external {
         for (uint256 i = 0; i < operatorSets.length; i++) {
-            // Check that the operatorSet exists
-            require(_operatorSets[operatorSets[i].avs].contains(operatorSets[i].id), InvalidOperatorSet());
+            // If the operatorSet does not exist, continue
+            if (!_operatorSets[operatorSets[i].avs].contains(operatorSets[i].id)) {
+                continue;
+            }
 
-            // Check that the operatorSet is not already migrated
-            require(!_slashers[operatorSets[i].key()].isMigrated, OperatorSetAlreadyMigrated());
+            // If the operatorSet slasher is already migrated, continue
+            // We know if an operatorSet slasher is migrated if the slasher is not the 0 address
+            if (_slashers[operatorSets[i].key()].slasher == address(0)) {
+                continue;
+            }
 
             // Get the slasher from the permission controller.
             address[] memory slashers =
                 permissionController.getAppointees(operatorSets[i].avs, address(this), this.slashOperator.selector);
 
             address slasher;
-            // If there are no slashers, set the slasher to the AVS
-            if (slashers.length == 0) {
+            // If there are no slashers or the first slasher is the 0 address, set the slasher to the AVS
+            if (slashers.length == 0 || slashers[0] == address(0)) {
                 slasher = operatorSets[i].avs;
-            } else {
                 // Else, set the slasher to the first slasher
+            } else {
                 slasher = slashers[0];
             }
 
-            _updateSlasher(operatorSets[i], slasher, uint32(block.number));
-
-            // Mark the operatorSet as being migrated
-            _slashers[operatorSets[i].key()].isMigrated = true;
+            _updateSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
         }
     }
 
@@ -512,9 +513,6 @@ contract AllocationManager is
     ) internal {
         OperatorSet memory operatorSet = OperatorSet(avs, params.operatorSetId);
 
-        // Ensure that the slasher address is not the 0 address
-        require(params.slasher != address(0), InputAddressZero());
-
         // Create the operator set, ensuring it does not already exist.
         require(_operatorSets[avs].add(operatorSet.id), InvalidOperatorSet());
         emit OperatorSetCreated(operatorSet);
@@ -531,7 +529,7 @@ contract AllocationManager is
         }
 
         // Update the slasher for the operator set
-        _updateSlasher(operatorSet, params.slasher, uint32(block.number));
+        _updateSlasher({operatorSet: operatorSet, slasher: params.slasher, instantEffectBlock: true});
     }
 
     /**
@@ -774,16 +772,25 @@ contract AllocationManager is
      * @dev Helper function to update the slasher for an operator set
      * @param operatorSet the operator set to update the slasher for
      * @param slasher the new slasher
-     * @param effectBlock the block at which the new slasher will take effect. If this is called by the migrate function, this is instant.
+     * @param instantEffectBlock Whether the new slasher will take effect immediately. Instant if on operatorSet creation or migration function.
+     *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `updateSlasher` function.
      */
-    function _updateSlasher(OperatorSet memory operatorSet, address slasher, uint32 effectBlock) internal {
+    function _updateSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
         SlasherParams memory params = _slashers[operatorSet.key()];
 
+        // Ensure that the slasher address is not the 0 address, which is used to denote if the slasher is not set
+        require(slasher != address(0), InputAddressZero());
+
         params.pendingSlasher = slasher;
-        params.effectBlock = effectBlock;
+
+        if (instantEffectBlock) {
+            params.effectBlock = uint32(block.number);
+        } else {
+            params.effectBlock = uint32(block.number) + ALLOCATION_CONFIGURATION_DELAY + 1;
+        }
 
         _slashers[operatorSet.key()] = params;
-        emit SlasherUpdated(operatorSet, slasher, effectBlock);
+        emit SlasherUpdated(operatorSet, slasher, params.effectBlock);
     }
 
     /**
