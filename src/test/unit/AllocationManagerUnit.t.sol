@@ -1781,6 +1781,63 @@ contract AllocationManagerUnitTests_SlashOperator is AllocationManagerUnitTests 
         assertEq(0, allocationManager.getAllocatableMagnitude(defaultOperator, strategyMock), "Allocatable magnitude should be 0");
         assertEq(0, allocationManager.getMaxMagnitude(defaultOperator, strategyMock), "Max magnitude should be 0");
     }
+
+    /**
+     * @notice Tests that an AVS can update the slasher, and it can slash once the slasher is active
+     */
+    function test_slash_updateSlasher_slashAgain() public {
+        // Allocate all magnitude
+        cheats.prank(defaultOperator);
+        allocationManager.modifyAllocations(defaultOperator, _newAllocateParams(defaultOperatorSet, WAD));
+        cheats.roll(block.number + DEFAULT_OPERATOR_ALLOCATION_DELAY);
+
+        SlashingParams memory slashingParams = SlashingParams({
+            operator: defaultOperator,
+            operatorSetId: defaultOperatorSet.id,
+            strategies: defaultStrategies,
+            wadsToSlash: 5e17.toArrayU256(),
+            description: "test"
+        });
+
+        // Slash the operator for half
+        cheats.prank(defaultAVS);
+        allocationManager.slashOperator(defaultAVS, slashingParams);
+
+        // Update the slasher
+        address appointee1 = address(0x1);
+        cheats.prank(defaultAVS);
+        allocationManager.setSlasher(defaultOperatorSet, appointee1);
+
+        // Warp to just before the effect block of the slasher - fail to slash
+        cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY);
+        cheats.prank(appointee1);
+        cheats.expectRevert(InvalidCaller.selector);
+        allocationManager.slashOperator(defaultAVS, slashingParams);
+
+        // Warp to the effect block of the slasher
+        cheats.roll(block.number + 1);
+
+        // Slash the operator again for half
+        cheats.prank(appointee1);
+        allocationManager.slashOperator(defaultAVS, slashingParams);
+
+        // Sanity checks
+        _checkAllocationStorage({
+            operator: defaultOperator,
+            operatorSet: defaultOperatorSet,
+            strategy: strategyMock,
+            expectedAllocation: Allocation({currentMagnitude: 25e16, pendingDiff: 0, effectBlock: 0}),
+            expectedMagnitudes: Magnitudes({encumbered: 25e16, max: 25e16, allocatable: 0})
+        });
+
+        // Slashable stake should include first allocation and slashed magnitude
+        _checkSlashableStake({
+            operatorSet: defaultOperatorSet,
+            operator: defaultOperator,
+            strategies: defaultStrategies,
+            expectedSlashableStake: 25e16
+        });
+    }
 }
 
 contract AllocationManagerUnitTests_ModifyAllocations is AllocationManagerUnitTests {
