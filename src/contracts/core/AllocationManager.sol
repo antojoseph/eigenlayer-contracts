@@ -344,7 +344,7 @@ contract AllocationManager is
     }
 
     /// @inheritdoc IAllocationManager
-    function migrateSlasher(
+    function migrateSlashers(
         OperatorSet[] memory operatorSets
     ) external {
         for (uint256 i = 0; i < operatorSets.length; i++) {
@@ -353,9 +353,8 @@ contract AllocationManager is
                 continue;
             }
 
-            // If the operatorSet slasher is already migrated, continue
-            // We know if an operatorSet slasher is migrated if the slasher is not the 0 address
-            if (_slashers[operatorSets[i].key()].slasher == address(0)) {
+            // If the slasher is already set, continue
+            if (getSlasher(operatorSets[i]) != address(0)) {
                 continue;
             }
 
@@ -773,7 +772,7 @@ contract AllocationManager is
      * @param operatorSet the operator set to update the slasher for
      * @param slasher the new slasher
      * @param instantEffectBlock Whether the new slasher will take effect immediately. Instant if on operatorSet creation or migration function.
-     *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `updateSlasher` function.
+     *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `setSlasher` function.
      */
     function _setSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
         // Ensure that the slasher address is not the 0 address, which is used to denote if the slasher is not set
@@ -1136,7 +1135,7 @@ contract AllocationManager is
     /// @inheritdoc IAllocationManager
     function getPendingSlasher(
         OperatorSet memory operatorSet
-    ) public view returns (address, uint32) {
+    ) external view returns (address, uint32) {
         // Initialize the pending slasher and effect block to the address(0) and 0 respectively
         address pendingSlasher;
         uint32 effectBlock;

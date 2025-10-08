@@ -455,7 +455,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      *      - The operator set does not exist
      *      - The operator set has already been migrated
      */
-    function migrateSlasher(
+    function migrateSlashers(
         OperatorSet[] memory operatorSets
     ) external;
 

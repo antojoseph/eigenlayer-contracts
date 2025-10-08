@@ -4299,6 +4299,206 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
     }
 }
 
+contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTests {
+    using ArrayLib for *;
+
+    // Test appointees
+    address appointee1 = address(0x1);
+    address appointee2 = address(0x2);
+
+    function _assertNothingPending(OperatorSet memory operatorSet) internal view {
+        (address returnedPendingSlasher, uint32 returnedEffectBlock) = allocationManager.getPendingSlasher(operatorSet);
+        assertEq(returnedPendingSlasher, address(0), "pending slasher should be the 0 address");
+        assertEq(returnedEffectBlock, 0, "effect block should be 0");
+    }
+
+    function setUp() public override {
+        AllocationManagerUnitTests.setUp();
+
+        // Manually set the slasher of the defaultAVS to be address(0)
+        // Given that the slasher is already set to the defaultAVS, we need to manually update so that the `migrateSlashers` function will not noop
+        allocationManager.setSlasherZero(defaultOperatorSet);
+    }
+
+    function test_noop_invalidOperatorSet() public {
+        OperatorSet memory operatorSet = OperatorSet(defaultAVS, 1);
+
+        // Start recording
+        vm.record();
+        allocationManager.migrateSlashers(operatorSet.toArray());
+
+        (bytes32[] memory reads,) = vm.accesses(address(allocationManager));
+        assertEq(reads.length, 3, "should have 3 reads");
+    }
+
+    function test_noop_slasherAlreadySet() public {
+        // Register the operatorSet
+        OperatorSet memory operatorSet = OperatorSet(defaultAVS, 1);
+        CreateSetParams[] memory createSetParams = new CreateSetParams[](1);
+        createSetParams[0] = CreateSetParams(operatorSet.id, new IStrategy[](0));
+        cheats.prank(defaultAVS);
+        allocationManager.createOperatorSets(defaultAVS, createSetParams);
+
+        // Start recording - in this case the slasher is already set, so we noop after
+        vm.record();
+        allocationManager.migrateSlashers(operatorSet.toArray());
+
+        (bytes32[] memory reads,) = vm.accesses(address(allocationManager));
+        assertEq(reads.length, 5, "should have 5 reads");
+    }
+
+    function test_noSlasherInPC() public {
+        // Migrate the slasher
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherUpdated(defaultOperatorSet, defaultAVS, uint32(block.number));
+        vm.record();
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // Sanity check on number of reads (greater than previous test)
+        (bytes32[] memory reads,) = vm.accesses(address(allocationManager));
+        assertGt(reads.length, 5, "should have greater than 5 reads");
+
+        // Check that the slasher is set to the defaultAVS
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), defaultAVS, "slasher should be the defaultAVS");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    function test_zeroAddressInPC() public {
+        // Add an appointee for the zero address
+        cheats.prank(defaultAVS);
+        permissionController.setAppointee(defaultAVS, address(0), address(allocationManager), allocationManager.slashOperator.selector);
+
+        // Migrate the slasher
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherUpdated(defaultOperatorSet, defaultAVS, uint32(block.number));
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // Check that the slasher is set to the defaultAVS
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), defaultAVS, "slasher should be the defaultAVS");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    function test_multipleAppointees() public {
+        // Add two appointees
+        cheats.startPrank(defaultAVS);
+        permissionController.setAppointee(defaultAVS, appointee1, address(allocationManager), allocationManager.slashOperator.selector);
+        permissionController.setAppointee(defaultAVS, appointee2, address(allocationManager), allocationManager.slashOperator.selector);
+        cheats.stopPrank();
+
+        // Migrate the slasher - only the first appointee should be set
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherUpdated(defaultOperatorSet, appointee1, uint32(block.number));
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // Check that the slasher is set to the first appointee
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), appointee1, "slasher should be the first appointee");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    /// @notice Same as previous test, bus since appointee2 is added first, the slasher should be the second appointee
+    function test_multipleAppointees_differentOrder() public {
+        // Add two appointees
+        cheats.startPrank(defaultAVS);
+        permissionController.setAppointee(defaultAVS, appointee2, address(allocationManager), allocationManager.slashOperator.selector);
+        permissionController.setAppointee(defaultAVS, appointee1, address(allocationManager), allocationManager.slashOperator.selector);
+        cheats.stopPrank();
+
+        // Migrate the slasher - only the second appointee should be set
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherUpdated(defaultOperatorSet, appointee2, uint32(block.number));
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // Check that the slasher is set to the second appointee
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), appointee2, "slasher should be the second appointee");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    function test_cannotMigrateMultipleTimes() public {
+        // Migrate the slasher
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), defaultAVS, "slasher should be the defaultAVS");
+
+        // Set an appointee for the slasher
+        cheats.prank(defaultAVS);
+        permissionController.setAppointee(defaultAVS, appointee1, address(allocationManager), allocationManager.slashOperator.selector);
+
+        // Migrate the slasher again - should noop
+        vm.record();
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // Sanity check on number of reads (should be 5)
+        (bytes32[] memory reads,) = vm.accesses(address(allocationManager));
+        assertEq(reads.length, 5, "should have 5 reads");
+
+        // Check that the slasher is still set to the defaultAVS
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), defaultAVS, "slasher should be the defaultAVS");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    /**
+     * @notice Test for when an AVS sets the slasher first and then a migration occurs
+     * @dev This is a known race condition. Migration will take precedence over setting a slasher
+     *      via `setSlasher`. The operatorSet should wait until the migration is complete before setting a slasher.
+     */
+    function test_setSlasher_migrate() public {
+        // Set the slasher
+        cheats.prank(defaultAVS);
+        allocationManager.setSlasher(defaultOperatorSet, appointee1);
+
+        // Set the slasher in the permission controller
+        cheats.prank(defaultAVS);
+        permissionController.setAppointee(defaultAVS, appointee2, address(allocationManager), allocationManager.slashOperator.selector);
+
+        // Migrate the slasher
+        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
+
+        // The slasher should be set to the second appointee
+        assertEq(allocationManager.getSlasher(defaultOperatorSet), appointee2, "slasher should be the second appointee");
+        _assertNothingPending(defaultOperatorSet);
+    }
+
+    function testFuzz_migrateSlashers_Correctness(Randomness r) public rand(r) {
+        address avs = r.Address();
+        uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
+
+        cheats.prank(avs);
+        allocationManager.updateAVSMetadataURI(avs, "https://example.com");
+
+        CreateSetParamsV2[] memory createSetParams = new CreateSetParamsV2[](numOpSets);
+        OperatorSet[] memory operatorSets = new OperatorSet[](numOpSets);
+
+        for (uint i = 0; i < numOpSets; ++i) {
+            createSetParams[i].operatorSetId = r.Uint32(1, type(uint32).max);
+            createSetParams[i].strategies = r.StrategyArray(0);
+            createSetParams[i].slasher = r.Address();
+            operatorSets[i] = OperatorSet(avs, createSetParams[i].operatorSetId);
+        }
+
+        cheats.prank(avs);
+        allocationManager.createOperatorSets(avs, createSetParams);
+
+        // Set slashers to zero address on all previously create opSets so we can migrate them
+        for (uint i = 0; i < numOpSets; ++i) {
+            allocationManager.setSlasherZero(operatorSets[i]);
+        }
+
+        // Expect event emits
+        for (uint i = 0; i < numOpSets; ++i) {
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherUpdated(operatorSets[i], avs, uint32(block.number));
+        }
+
+        // Migrate the slashers
+        allocationManager.migrateSlashers(operatorSets);
+
+        // Check that the slashers are set to the AVS
+        for (uint i = 0; i < numOpSets; ++i) {
+            assertEq(allocationManager.getSlasher(operatorSets[i]), avs, "slasher should be the AVS");
+            _assertNothingPending(operatorSets[i]);
+        }
+    }
+}
+
 contract AllocationManagerUnitTests_setAVSRegistrar is AllocationManagerUnitTests {
     function test_getAVSRegistrar() public {
         address randomAVS = random().Address();
