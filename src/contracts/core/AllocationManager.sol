@@ -269,6 +269,7 @@ contract AllocationManager is
     }
 
     /// @inheritdoc IAllocationManager
+    /// @notice This function will be deprecated in Early Q2 2026 in favor of `createOperatorSets` which takes in `CreateSetParamsV2`
     function createOperatorSets(address avs, CreateSetParams[] calldata params) external checkCanCall(avs) {
         createOperatorSets(avs, _convertCreateSetParams(params, avs));
     }
@@ -279,6 +280,16 @@ contract AllocationManager is
         for (uint256 i = 0; i < params.length; i++) {
             _createOperatorSet(avs, params[i], DEFAULT_BURN_ADDRESS);
         }
+    }
+
+    /// @inheritdoc IAllocationManager
+    /// @notice This function will be deprecated in Early Q2 2026 in favor of `createRedistributingOperatorSets` which takes in `CreateSetParamsV2`
+    function createRedistributingOperatorSets(
+        address avs,
+        CreateSetParams[] calldata params,
+        address[] calldata redistributionRecipients
+    ) external checkCanCall(avs) {
+        createRedistributingOperatorSets(avs, _convertCreateSetParams(params, avs), redistributionRecipients);
     }
 
     /// @inheritdoc IAllocationManager
@@ -295,15 +306,6 @@ contract AllocationManager is
             require(recipient != DEFAULT_BURN_ADDRESS, InvalidRedistributionRecipient());
             _createOperatorSet(avs, params[i], recipient);
         }
-    }
-
-    /// @inheritdoc IAllocationManager
-    function createRedistributingOperatorSets(
-        address avs,
-        CreateSetParams[] calldata params,
-        address[] calldata redistributionRecipients
-    ) external checkCanCall(avs) {
-        createRedistributingOperatorSets(avs, _convertCreateSetParams(params, avs), redistributionRecipients);
     }
 
     /// @inheritdoc IAllocationManager
@@ -338,9 +340,12 @@ contract AllocationManager is
     }
 
     /// @inheritdoc IAllocationManager
-    function setSlasher(OperatorSet memory operatorSet, address slasher) external checkCanCall(operatorSet.avs) {
+    function updateSlasher(OperatorSet memory operatorSet, address slasher) external checkCanCall(operatorSet.avs) {
         require(_operatorSets[operatorSet.avs].contains(operatorSet.id), InvalidOperatorSet());
-        _setSlasher({operatorSet: operatorSet, slasher: slasher, instantEffectBlock: false});
+        // Prevent updating a slasher if one is not already set
+        // A slasher is set either on operatorSet creation or, for operatorSets created prior to v1.9.0, via `migrateSlashers`
+        require(getSlasher(operatorSet) != address(0), SlasherNotSet());
+        _updateSlasher({operatorSet: operatorSet, slasher: slasher, instantEffectBlock: false});
     }
 
     /// @inheritdoc IAllocationManager
@@ -371,7 +376,7 @@ contract AllocationManager is
                 slasher = slashers[0];
             }
 
-            _setSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
+            _updateSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
         }
     }
 
@@ -528,7 +533,7 @@ contract AllocationManager is
         }
 
         // Update the slasher for the operator set
-        _setSlasher({operatorSet: operatorSet, slasher: params.slasher, instantEffectBlock: true});
+        _updateSlasher({operatorSet: operatorSet, slasher: params.slasher, instantEffectBlock: true});
     }
 
     /**
@@ -772,9 +777,9 @@ contract AllocationManager is
      * @param operatorSet the operator set to update the slasher for
      * @param slasher the new slasher
      * @param instantEffectBlock Whether the new slasher will take effect immediately. Instant if on operatorSet creation or migration function.
-     *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `setSlasher` function.
+     *        The new slasher will take `ALLOCATION_CONFIGURATION_DELAY` blocks to take effect if called by the `updateSlasher` function.
      */
-    function _setSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
+    function _updateSlasher(OperatorSet memory operatorSet, address slasher, bool instantEffectBlock) internal {
         // Ensure that the slasher address is not the 0 address, which is used to denote if the slasher is not set
         require(slasher != address(0), InputAddressZero());
 

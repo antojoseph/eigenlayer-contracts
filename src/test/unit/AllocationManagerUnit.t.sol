@@ -1806,7 +1806,7 @@ contract AllocationManagerUnitTests_SlashOperator is AllocationManagerUnitTests 
         // Update the slasher
         address appointee1 = address(0x1);
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, appointee1);
+        allocationManager.updateSlasher(defaultOperatorSet, appointee1);
 
         // Warp to just before the effect block of the slasher - fail to slash
         cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY);
@@ -4224,9 +4224,9 @@ contract AllocationManagerUnitTests_createRedistributingOperatorSetsV2 is Alloca
     }
 }
 
-contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IPermissionControllerErrors {
+contract AllocationManagerUnitTests_updateSlasher is AllocationManagerUnitTests, IPermissionControllerErrors {
     /// -----------------------------------------------------------------------
-    /// setSlasher() + getSlasher() + getPendingSlasher()
+    /// updateSlasher() + getSlasher() + getPendingSlasher()
     /// -----------------------------------------------------------------------
 
     /// @dev Thrown when the caller is not allowed to call a function on behalf of an account.
@@ -4242,13 +4242,36 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
 
         cheats.prank(caller);
         cheats.expectRevert(InvalidPermissions.selector);
-        allocationManager.setSlasher(defaultOperatorSet, r.Address());
+        allocationManager.updateSlasher(defaultOperatorSet, r.Address());
+    }
+
+    function test_revert_invalidOperatorSet() public {
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(InvalidOperatorSet.selector);
+        allocationManager.updateSlasher(OperatorSet(defaultAVS, 1), defaultAVS);
+    }
+
+    function test_revert_slasherNotSet() public {
+        cheats.prank(defaultAVS);
+
+        // Zero out the slasher address
+        allocationManager.setSlasherToZero(defaultOperatorSet);
+
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(SlasherNotSet.selector);
+        allocationManager.updateSlasher(defaultOperatorSet, defaultAVS);
+    }
+
+    function test_revert_slasherZeroAddress() public {
+        cheats.prank(defaultAVS);
+        cheats.expectRevert(IPausable.InputAddressZero.selector);
+        allocationManager.updateSlasher(defaultOperatorSet, address(0));
     }
 
     function test_slasher_boundary(Randomness r) public rand(r) {
         address slasher = r.Address();
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, slasher);
+        allocationManager.updateSlasher(defaultOperatorSet, slasher);
         uint32 effectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
 
         // Warp to the allocation config delay - the slasher should still be the defaultAVS and the pending slasher should be the new slasher
@@ -4266,7 +4289,7 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
         assertEq(returnedEffectBlock, 0, "effect block should be 0");
     }
 
-    function testFuzz_setSlasher(Randomness r) public rand(r) {
+    function testFuzz_updateSlasher(Randomness r) public rand(r) {
         address slasher = r.Address();
 
         // Set slasher
@@ -4274,7 +4297,7 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
         uint32 effectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
         emit SlasherUpdated(defaultOperatorSet, slasher, effectBlock);
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, slasher);
+        allocationManager.updateSlasher(defaultOperatorSet, slasher);
 
         // Check values after set
         (address returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
@@ -4294,13 +4317,13 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
         assertEq(returnedEffectBlock, 0, "effect block should be 0");
     }
 
-    function test_fuzz_setSlasher_multipleTimesWithinConfigurationDelay(Randomness r) public rand(r) {
+    function test_fuzz_updateSlasher_multipleTimesWithinConfigurationDelay(Randomness r) public rand(r) {
         address firstSlasher = r.Address();
         address secondSlasher = r.Address();
 
         // Set slasher
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, firstSlasher);
+        allocationManager.updateSlasher(defaultOperatorSet, firstSlasher);
         (address pendingSlasher,) = allocationManager.getPendingSlasher(defaultOperatorSet);
         assertEq(pendingSlasher, firstSlasher, "pending slasher should be the first slasher");
 
@@ -4312,7 +4335,7 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
         uint32 secondSlasherEffectBlock = uint32(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
         emit SlasherUpdated(defaultOperatorSet, secondSlasher, secondSlasherEffectBlock);
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, secondSlasher);
+        allocationManager.updateSlasher(defaultOperatorSet, secondSlasher);
 
         // Warp to effect block of first slasher
         cheats.roll(block.number + 1);
@@ -4336,14 +4359,14 @@ contract AllocationManagerUnitTests_SetSlasher is AllocationManagerUnitTests, IP
 
         // Set Slasher
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, firstSlasher);
+        allocationManager.updateSlasher(defaultOperatorSet, firstSlasher);
 
         // Warp to effect block of first slasher
         cheats.roll(block.number + ALLOCATION_CONFIGURATION_DELAY + 1);
 
         // Set slasher again
         cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, secondSlasher);
+        allocationManager.updateSlasher(defaultOperatorSet, secondSlasher);
 
         // Assert that first slasher is the current slasher
         (address returnedSlasher) = allocationManager.getSlasher(defaultOperatorSet);
@@ -4374,7 +4397,7 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
 
         // Manually set the slasher of the defaultAVS to be address(0)
         // Given that the slasher is already set to the defaultAVS, we need to manually update so that the `migrateSlashers` function will not noop
-        allocationManager.setSlasherZero(defaultOperatorSet);
+        allocationManager.setSlasherToZero(defaultOperatorSet);
     }
 
     function test_noop_invalidOperatorSet() public {
@@ -4492,28 +4515,6 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         _assertNothingPending(defaultOperatorSet);
     }
 
-    /**
-     * @notice Test for when an AVS sets the slasher first and then a migration occurs
-     * @dev This is a known race condition. Migration will take precedence over setting a slasher
-     *      via `setSlasher`. The operatorSet should wait until the migration is complete before setting a slasher.
-     */
-    function test_setSlasher_migrate() public {
-        // Set the slasher
-        cheats.prank(defaultAVS);
-        allocationManager.setSlasher(defaultOperatorSet, appointee1);
-
-        // Set the slasher in the permission controller
-        cheats.prank(defaultAVS);
-        permissionController.setAppointee(defaultAVS, appointee2, address(allocationManager), allocationManager.slashOperator.selector);
-
-        // Migrate the slasher
-        allocationManager.migrateSlashers(defaultOperatorSet.toArray());
-
-        // The slasher should be set to the second appointee
-        assertEq(allocationManager.getSlasher(defaultOperatorSet), appointee2, "slasher should be the second appointee");
-        _assertNothingPending(defaultOperatorSet);
-    }
-
     function testFuzz_migrateSlashers_Correctness(Randomness r) public rand(r) {
         address avs = r.Address();
         uint numOpSets = r.Uint256(1, FUZZ_MAX_OP_SETS);
@@ -4536,7 +4537,7 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
 
         // Set slashers to zero address on all previously create opSets so we can migrate them
         for (uint i = 0; i < numOpSets; ++i) {
-            allocationManager.setSlasherZero(operatorSets[i]);
+            allocationManager.setSlasherToZero(operatorSets[i]);
         }
 
         // Expect event emits

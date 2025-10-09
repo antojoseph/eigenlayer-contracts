@@ -63,6 +63,11 @@ interface IAllocationManagerErrors {
     error ModificationAlreadyPending();
     /// @dev Thrown when an allocation is attempted that exceeds a given operators total allocatable magnitude.
     error InsufficientMagnitude();
+
+    /// SlasherStatus
+
+    /// @dev Thrown when an operator set does not have a slasher set
+    error SlasherNotSet();
 }
 
 interface IAllocationManagerTypes {
@@ -373,6 +378,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      * @notice Allows an AVS to create new operator sets, defining strategies that the operator set uses
      * @dev Upon creation, the address that can slash the operatorSet is the `avs` address. If you would like to use a different address,
      *      use the `createOperatorSets` method which takes in `CreateSetParamsV2` instead.
+     * @dev THIS FUNCTION WILL BE DEPRECATED IN EARLY Q2 2026 IN FAVOR OF `createOperatorSets` WHICH TAKES IN `CreateSetParamsV2`
      */
     function createOperatorSets(address avs, CreateSetParams[] calldata params) external;
 
@@ -390,6 +396,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      *      Additionally, emits `RedistributionOperatorSetCreated` event instead of `OperatorSetCreated` for each created operator set.
      * @dev The address that can slash the operatorSet is the `avs` address. If you would like to use a different address,
      *      use the `createOperatorSets` method which takes in `CreateSetParamsV2` instead.
+     * @dev THIS FUNCTION WILL BE DEPRECATED IN EARLY Q2 2026 IN FAVOR OF `createRedistributingOperatorSets` WHICH TAKES IN `CreateSetParamsV2`
      */
     function createRedistributingOperatorSets(
         address avs,
@@ -439,11 +446,14 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      * @param operatorSet the operator set to update the slasher for
      * @param slasher the new slasher
      * @dev The new slasher will take effect in DEALLOCATION_DELAY blocks
+     * @dev The slasher can only be updated if it has already been set. The slasher is set either on operatorSet creation or,
+     *      for operatorSets created prior to v1.9.0, via `migrateSlashers`
      * @dev Reverts for:
-     *      - InvalidOperatorSet: The operator set does not exist
      *      - InvalidCaller: The caller cannot update the slasher for the operator set
+     *      - InvalidOperatorSet: The operator set does not exist
+     *      - SlasherNotSet: The slasher has not been set yet
      */
-    function setSlasher(OperatorSet memory operatorSet, address slasher) external;
+    function updateSlasher(OperatorSet memory operatorSet, address slasher) external;
 
     /**
      * @notice Allows any address to migrate the slasher from the permission controller to the ALM
@@ -453,7 +463,7 @@ interface IAllocationManager is IAllocationManagerErrors, IAllocationManagerEven
      * @dev A migration can only be called once for a given operatorSet
      * @dev This function does not revert, it will no-op if:
      *      - The operator set does not exist
-     *      - The operator set has already been migrated
+     *      - The slasherhas already been set, either via migration or creation of the operatorSet
      */
     function migrateSlashers(
         OperatorSet[] memory operatorSets
