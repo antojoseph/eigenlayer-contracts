@@ -3,6 +3,7 @@ pragma solidity ^0.8.27;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "../interfaces/IPausable.sol";
 import "./ProtocolRegistryStorage.sol";
 
 contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistryStorage {
@@ -31,29 +32,77 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      */
 
     /// @inheritdoc IProtocolRegistry
-    function setVersion(address addr, string calldata semver) external onlyOwner {
-        _setVersion(addr, semver);
+    function ship(
+        Deployment calldata deployment,
+        address[] calldata implementations,
+        string calldata semanticVersion
+    ) external onlyOwner {
+        // Update the semantic version.
+        _semanticVersions.push(semanticVersion.toShortString());
+        // Append the single deployment.
+        _appendDeployment(deployment, implementations, semanticVersion);
     }
 
     /// @inheritdoc IProtocolRegistry
-    function setVersions(address[] calldata addresses, string calldata semver) external onlyOwner {
-        for (uint256 i = 0; i < addresses.length; ++i) {
-            _setVersion(addresses[i], semver);
+    function ship(
+        Deployment[] calldata deployments,
+        address[][] calldata implementations,
+        string calldata semanticVersion
+    ) external onlyOwner {
+        // Update the semantic version.
+        _semanticVersions.push(semanticVersion.toShortString());
+        for (uint256 i = 0; i < deployments.length; ++i) {
+            // Append each provided deployment.
+            _appendDeployment(deployments[i], implementations[i], semanticVersion);
         }
     }
 
     /// @inheritdoc IProtocolRegistry
-    function setVersions(address[] calldata addresses, string[] calldata semvers) external onlyOwner {
-        require(addresses.length == semvers.length, InputArrayLengthMismatch());
-        for (uint256 i = 0; i < addresses.length; ++i) {
-            _setVersion(addresses[i], semvers[i]);
+    function configure(uint256 deploymentIndex, DeploymentConfig calldata config) external onlyOwner {
+        // Create a storage pointer for so we only read once.
+        Deployment storage deployment = _deployments[deploymentIndex];
+        // Update the deployment config.
+        deployment.config = config;
+        // Emit the event.
+        emit DeploymentConfigured(deployment.addr, config);
+    }
+
+    /// @inheritdoc IProtocolRegistry
+    function pauseAll() external onlyOwner {
+        uint256 totalDeployments = _deployments.length;
+        // Iterate over all stored deployments
+        for (uint256 i = 0; i < totalDeployments; ++i) {
+            Deployment storage deployment = _deployments[i];
+            // Only attempt to pause deployments marked as pausable
+            if (deployment.config.pausable) {
+                // Attempt to call pauseAll; if it fails, continue to the next deployment.
+                // This ensures a single failure does not prevent us from pausing others in a timely manner.
+                try IPausable(deployment.addr).pauseAll() {} catch {}
+            }
         }
     }
 
-    /// @dev Internal function to set the version for a given address.
-    function _setVersion(address addr, string calldata semver) internal {
-        _semver[addr] = semver.toShortString();
-        emit VersionSet(addr, semver);
+    /**
+     *
+     *                             HELPER FUNCTIONS
+     *
+     */
+
+    /// @dev Appends a deployment and it's corresponding implementations.
+    function _appendDeployment(
+        Deployment calldata deployment,
+        address[] calldata implementations,
+        string calldata semanticVersion
+    ) internal {
+        // TODO: Prevent duplicates
+
+        // Append the deployment.
+        _deployments.push(deployment);
+        // Append the implementations for the deployment.
+        _implementations[deployment.addr].push(implementations);
+        // Emit the events.
+        emit DeploymentShipped(deployment.addr, implementations, semanticVersion);
+        emit DeploymentConfigured(deployment.addr, deployment.config);
     }
 
     /**
@@ -63,17 +112,13 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      */
 
     /// @inheritdoc IProtocolRegistry
-    function version(
-        address addr
-    ) external view returns (string memory) {
-        return _semver[addr].toString();
+    function latestVersion() external view returns (string memory) {
+        return _semanticVersions[_deployments.length - 1].toString();
     }
 
     /// @inheritdoc IProtocolRegistry
-    function majorVersion(
-        address addr
-    ) external view returns (string memory) {
-        bytes memory v = bytes(_semver[addr].toString());
+    function latestMajorVersion() external view returns (string memory) {
+        bytes memory v = bytes(_semanticVersions[_deployments.length - 1].toString());
         return string(abi.encodePacked(v[0]));
     }
 }

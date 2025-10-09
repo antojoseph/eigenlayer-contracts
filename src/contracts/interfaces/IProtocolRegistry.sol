@@ -6,13 +6,47 @@ interface IProtocolRegistryErrors {
     error InputArrayLengthMismatch();
 }
 
-interface IProtocolRegistryTypes {}
+interface IProtocolRegistryTypes {
+    /**
+     * @notice Configuration for a protocol deployment.
+     * @param pausable Whether this deployment can be paused.
+     * @param upgradeable Whether this deployment is upgradeable.
+     * @param splitContract Whether this deployment uses a split-contract pattern (two implementations).
+     * @param deprecated Whether this deployment is deprecated.
+     */
+    struct DeploymentConfig {
+        bool pausable;
+        bool upgradeable;
+        bool splitContract;
+        bool deprecated;
+    }
+
+    /**
+     * @notice Parameters describing a protocol deployment.
+     * @param addr The address of the deployment (proxy address if upgradeable).
+     * @param config The configuration for the deployment.
+     */
+    struct Deployment {
+        address addr;
+        DeploymentConfig config;
+    }
+}
 
 interface IProtocolRegistryEvents is IProtocolRegistryTypes {
-    /// @notice Emitted when the version is set for a given address.
-    /// @param addr The address for which the version is set.
-    /// @param semver The semantic version string set for the address.
-    event VersionSet(address indexed addr, string semver);
+    /**
+     * @notice Emitted when a deployment is shipped.
+     * @param addr The address of the deployment.
+     * @param implementations The implementation addresses for the deployment.
+     * @param semanticVersion The semantic version associated with the deployment.
+     */
+    event DeploymentShipped(address indexed addr, address[] implementations, string semanticVersion);
+
+    /**
+     * @notice Emitted when a deployment is configured.
+     * @param addr The address of the deployment.
+     * @param config The configuration for the deployment.
+     */
+    event DeploymentConfigured(address indexed addr, DeploymentConfig config);
 }
 
 interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents {
@@ -25,44 +59,55 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     ) external;
 
     /**
-     * @notice Sets the semantic version for a single address.
-     * @dev Only callable by the contract owner.
-     * @param addr The address for which to set the version.
-     * @param semver The semantic version string to set for the address.
+     * @notice Ships a deployment and it's corresponding implementations.
+     * @dev Only callable by the owner.
+     * @param deployment The deployment to ship.
+     * @param implementations The implementations to ship.
+     * @param semanticVersion The semantic version to ship.
      */
-    function setVersion(address addr, string calldata semver) external;
+    function ship(
+        Deployment calldata deployment,
+        address[] calldata implementations,
+        string calldata semanticVersion
+    ) external;
 
     /**
-     * @notice Sets the same semantic version for each address in the provided array.
-     * @dev Only callable by the contract owner.
-     * @param addresses The addresses for which to set the version.
-     * @param semver The semantic version string to set for all addresses.
+     * @notice Ships a list of deployments and their corresponding implementations.
+     * @dev Only callable by the owner.
+     * @param deployments The deployments to ship.
+     * @param implementations The implementations to ship.
+     * @param semanticVersion The semantic version to ship.
      */
-    function setVersions(address[] calldata addresses, string calldata semver) external;
+    function ship(
+        Deployment[] calldata deployments,
+        address[][] calldata implementations,
+        string calldata semanticVersion
+    ) external;
 
     /**
-     * @notice Sets a distinct semantic version for each address in the provided array.
-     * @dev Only callable by the contract owner.
-     * @param addresses The addresses for which to set the version.
-     * @param semvers The semantic version strings to set, one for each address.
+     * @notice Configures a deployment.
+     * @dev Only callable by the owner.
+     * @param deploymentIndex The index of the deployment to configure.
+     * @param config The configuration to set.
      */
-    function setVersions(address[] calldata addresses, string[] calldata semvers) external;
+    function configure(uint256 deploymentIndex, DeploymentConfig calldata config) external;
 
     /**
-     * @notice Returns the semantic version string for a given address.
-     * @param addr The address to query.
-     * @return The semantic version string associated with the address.
+     * @notice Pauses all deployments that support pausing.
+     * @dev Loops over all deployments and attempts to invoke `pauseAll()` on each contract that is marked as pausable.
+     *      Silently ignores errors during calls for rapid pausing in emergencies. Owner only.
      */
-    function version(
-        address addr
-    ) external view returns (string memory);
+    function pauseAll() external;
 
     /**
-     * @notice Returns the major version string for a given address.
-     * @param addr The address to query.
-     * @return The major version string associated with the address.
+     * @notice Returns the semantic version string for the latest deployment.
+     * @return The semantic version string associated with the latest deployment.
      */
-    function majorVersion(
-        address addr
-    ) external view returns (string memory);
+    function latestVersion() external view returns (string memory);
+
+    /**
+     * @notice Returns the major version string for the latest deployment.
+     * @return The major version string associated with the latest deployment.
+     */
+    function latestMajorVersion() external view returns (string memory);
 }
