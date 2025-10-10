@@ -35,27 +35,27 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function ship(
         Deployment calldata deployment,
         address[] calldata implementations,
-        string calldata contractName,
+        string calldata name,
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
         _semanticVersions.push(semanticVersion.toShortString());
         // Append the single deployment.
-        _appendDeployment(deployment, implementations, contractName, semanticVersion);
+        _appendDeployment(deployment, implementations, name, semanticVersion);
     }
 
     /// @inheritdoc IProtocolRegistry
     function ship(
         Deployment[] calldata deployments,
         address[][] calldata implementations,
-        string calldata contractName,
+        string calldata name,
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
         _semanticVersions.push(semanticVersion.toShortString());
         for (uint256 i = 0; i < deployments.length; ++i) {
             // Append each provided deployment.
-            _appendDeployment(deployments[i], implementations[i], contractName, semanticVersion);
+            _appendDeployment(deployments[i], implementations[i], name, semanticVersion);
         }
     }
 
@@ -72,10 +72,10 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     /// @inheritdoc IProtocolRegistry
     function pauseAll() external onlyOwner {
         uint256 length = totalDeployments();
-        // Iterate over all stored deployments
+        // Iterate over all stored deployments.
         for (uint256 i = 0; i < length; ++i) {
             Deployment storage deployment = _deployments[i];
-            // Only attempt to pause deployments marked as pausable
+            // Only attempt to pause deployments marked as pausable.
             if (deployment.config.pausable) {
                 // Attempt to call pauseAll; if it fails, continue to the next deployment.
                 // This ensures a single failure does not prevent us from pausing others in a timely manner.
@@ -98,7 +98,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function _appendDeployment(
         Deployment calldata deployment,
         address[] calldata implementations,
-        string calldata contractName,
+        string calldata name,
         string calldata semanticVersion
     ) internal {
         // TODO: Prevent duplicates
@@ -108,10 +108,10 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         // Store the deployment.
         _deployments[deploymentId] = deployment;
         // Store the deployment ID.
-        _deploymentIds[keccak256(bytes(contractName))] = deploymentId;
+        _deploymentIds[keccak256(bytes(name))] = deploymentId;
 
         // Append the deployment name.
-        _deploymentNames.push(contractName);
+        _deploymentNames.push(name);
         // Append the implementations for the deployment.
         _implementations[deployment.addr].push(implementations);
 
@@ -128,9 +128,9 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function getDeployment(
-        string calldata contractName
+        string calldata name
     ) external view returns (Deployment memory) {
-        return _deployments[_deploymentIds[keccak256(bytes(contractName))]];
+        return _deployments[_deploymentIds[keccak256(bytes(name))]];
     }
 
     /// @inheritdoc IProtocolRegistry

@@ -109,17 +109,17 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
 
     /**
      * @notice Returns a deployment by name.
-     * @param contractName The name of the deployment to get.
+     * @param name The name of the deployment to get.
      * @return The deployment.
      */
     function getDeployment(
-        string calldata contractName
+        string calldata name
     ) external view returns (Deployment memory);
 
     /**
      * @notice Returns all deployments.
-     * @return The names of the deployments.
-     * @return The deployments.
+     * @return names The names of the deployments.
+     * @return deployments The deployments.
      */
     function getAllDeployments() external view returns (string[] memory names, Deployment[] memory deployments);
 
