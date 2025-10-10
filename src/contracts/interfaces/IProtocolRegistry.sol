@@ -28,9 +28,10 @@ interface IProtocolRegistryEvents is IProtocolRegistryTypes {
     /**
      * @notice Emitted when a deployment is shipped.
      * @param addr The address of the deployment.
+     * @param config The configuration for the deployment.
      * @param semanticVersion The semantic version associated with the deployment.
      */
-    event DeploymentShipped(address indexed addr, string semanticVersion);
+    event DeploymentShipped(address indexed addr, DeploymentConfig config, string semanticVersion);
 
     /**
      * @notice Emitted when a deployment is configured.
@@ -73,10 +74,10 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     /**
      * @notice Configures a deployment.
      * @dev Only callable by the owner.
-     * @param deploymentIndex The index of the deployment to configure.
+     * @param addr The address of the deployment to configure.
      * @param config The configuration to set.
      */
-    function configure(uint256 deploymentIndex, DeploymentConfig calldata config) external;
+    function configure(address addr, DeploymentConfig calldata config) external;
 
     /**
      * @notice Pauses all deployments that support pausing.
@@ -84,15 +85,6 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
      *      Silently ignores errors during calls for rapid pausing in emergencies. Owner only.
      */
     function pauseAll() external;
-
-    /**
-     * @notice Returns a deployment by ID.
-     * @param deploymentId The ID of the deployment to get.
-     * @return address The address of the deployment.
-     */
-    function getAddress(
-        uint256 deploymentId
-    ) external view returns (address);
 
     /**
      * @notice Returns a deployment by name.

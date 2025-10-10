@@ -50,10 +50,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     }
 
     /// @inheritdoc IProtocolRegistry
-    function configure(uint256 deploymentIndex, DeploymentConfig calldata config) external onlyOwner {
-        require(deploymentIndex < _deployments.length(), OutOfBounds());
-        // Get the address at the given index
-        (, address addr) = _deployments.at(deploymentIndex);
+    function configure(address addr, DeploymentConfig calldata config) external onlyOwner {
         // Update the config
         _deploymentConfigs[addr] = config;
         // Emit the event.
@@ -99,8 +96,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         // Store deployment config
         _deploymentConfigs[addr] = config;
         // Emit the events.
-        emit DeploymentShipped(addr, semanticVersion);
-        emit DeploymentConfigured(addr, config);
+        emit DeploymentShipped(addr, config, semanticVersion);
     }
 
     /// @dev Fetches the implementation for a deployment if it's upgradeable.
@@ -134,27 +130,16 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function getAddress(
-        uint256 deploymentId
-    ) external view returns (address) {
-        require(deploymentId < _deployments.length(), OutOfBounds());
-        (, address addr) = _deployments.at(deploymentId);
-        return addr;
-    }
-
-    /// @inheritdoc IProtocolRegistry
-    function getAddress(
         string calldata name
     ) external view returns (address) {
-        uint256 nameShortString = _unwrap(name.toShortString());
-        return _deployments.get(nameShortString);
+        return _deployments.get(_unwrap(name.toShortString()));
     }
 
     /// @inheritdoc IProtocolRegistry
     function getDeployment(
         string calldata name
     ) external view returns (address addr, address implementation, DeploymentConfig memory config) {
-        uint256 nameShortString = _unwrap(name.toShortString());
-        addr = _deployments.get(nameShortString);
+        addr = _deployments.get(_unwrap(name.toShortString()));
         implementation = _getImplementation(addr, config);
         config = _deploymentConfigs[addr];
         return (addr, implementation, config);
