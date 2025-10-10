@@ -115,13 +115,6 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         return uint256(ShortString.unwrap(shortString));
     }
 
-    /// @dev Wraps a uint256 to a ShortString.
-    function _wrap(
-        uint256 shortString
-    ) internal pure returns (ShortString) {
-        return ShortString.wrap(bytes32(shortString));
-    }
-
     /**
      *
      *                              VIEW FUNCTIONS
