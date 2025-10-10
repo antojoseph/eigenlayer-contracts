@@ -133,8 +133,8 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         string calldata name
     ) external view returns (address addr, address implementation, DeploymentConfig memory config) {
         addr = _deployments.get(_unwrap(name.toShortString()));
-        implementation = _getImplementation(addr, config);
         config = _deploymentConfigs[addr];
+        implementation = _getImplementation(addr, config);
         return (addr, implementation, config);
     }
 
