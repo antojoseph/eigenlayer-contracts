@@ -7,17 +7,13 @@ import "../../interfaces/IProtocolRegistry.sol";
 // 64 bytes remain, could also use a bitmap if more is needed.
 
 abstract contract ProtocolRegistryStorage is IProtocolRegistry {
-    /// @notice Returns an append-only historical record of all semantic version identifiers for the protocol's deployments.
-    /// @dev Each entry corresponds to a version used for a deployment in the order they occurred.
-    ///      The latest element is the semantic version for the most recent deployment.
-    ShortString[] internal _semanticVersions;
+    /// @notice Returns the semantic version of the protocol.
+    ShortString internal _semanticVersion;
 
     /// @notice Returns an append-only list of all deployment names.
     string[] internal _deploymentNames;
-
     /// @notice Returns the deployment ID for a given deployment name.
     mapping(bytes32 name => uint256 deploymentId) internal _deploymentIds;
-
     /// @notice Returns the deployment for a given deployment ID.
     mapping(uint256 deploymentId => Deployment deployment) internal _deployments;
 
@@ -26,5 +22,5 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[43] private __gap;
+    uint256[44] private __gap;
 }

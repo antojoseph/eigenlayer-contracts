@@ -39,7 +39,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
-        _semanticVersions.push(semanticVersion.toShortString());
+        _updateSemanticVersion(semanticVersion);
         // Append the single deployment.
         _appendDeployment(deployment, implementations, name, semanticVersion);
     }
@@ -52,7 +52,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
-        _semanticVersions.push(semanticVersion.toShortString());
+        _updateSemanticVersion(semanticVersion);
         for (uint256 i = 0; i < deployments.length; ++i) {
             // Append each provided deployment.
             _appendDeployment(deployments[i], implementations[i], name, semanticVersion);
@@ -77,13 +77,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
             Deployment storage deployment = _deployments[i];
             // Only attempt to pause deployments marked as pausable.
             if (deployment.config.pausable) {
-                // Attempt to call pauseAll; if it fails, continue to the next deployment.
-                // This ensures a single failure does not prevent us from pausing others in a timely manner.
-                try IPausable(deployment.addr).pauseAll() {}
-                catch {
-                    // Emit an event for faster debugging.
-                    emit PauseFailed(deployment.addr);
-                }
+                IPausable(deployment.addr).pauseAll();
             }
         }
     }
@@ -93,6 +87,13 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      *                             HELPER FUNCTIONS
      *
      */
+
+    /// @dev Updates the semantic version of the protocol.
+    function _updateSemanticVersion(
+        string calldata semanticVersion
+    ) internal {
+        _semanticVersion = semanticVersion.toShortString();
+    }
 
     /// @dev Appends a deployment and it's corresponding implementations.
     function _appendDeployment(
@@ -149,9 +150,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function latestVersion() public view returns (string memory) {
-        unchecked {
-            return _semanticVersions[_deploymentNames.length - 1].toString();
-        }
+        return _semanticVersion.toString();
     }
 
     /// @inheritdoc IProtocolRegistry
