@@ -4,7 +4,7 @@ pragma solidity ^0.8.27;
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
 import "../interfaces/IPausable.sol";
-import "./ProtocolRegistryStorage.sol";
+import "./storage/ProtocolRegistryStorage.sol";
 
 contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistryStorage {
     using ShortStringsUpgradeable for *;

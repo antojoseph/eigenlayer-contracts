@@ -2,7 +2,7 @@
 pragma solidity ^0.8.27;
 
 import "@openzeppelin-upgrades/contracts/utils/ShortStringsUpgradeable.sol";
-import "../interfaces/IProtocolRegistry.sol";
+import "../../interfaces/IProtocolRegistry.sol";
 
 // 64 bytes remain, could also use a bitmap if more is needed.
 
