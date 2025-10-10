@@ -77,7 +77,11 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
             if (deployment.config.pausable) {
                 // Attempt to call pauseAll; if it fails, continue to the next deployment.
                 // This ensures a single failure does not prevent us from pausing others in a timely manner.
-                try IPausable(deployment.addr).pauseAll() {} catch {}
+                try IPausable(deployment.addr).pauseAll() {}
+                catch {
+                    // Emit an event for faster debugging.
+                    emit PauseFailed(deployment.addr);
+                }
             }
         }
     }
@@ -112,13 +116,15 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      */
 
     /// @inheritdoc IProtocolRegistry
-    function latestVersion() external view returns (string memory) {
-        return _semanticVersions[_deployments.length - 1].toString();
+    function latestVersion() public view returns (string memory) {
+        unchecked {
+            return _semanticVersions[_deployments.length - 1].toString();
+        }
     }
 
     /// @inheritdoc IProtocolRegistry
     function latestMajorVersion() external view returns (string memory) {
-        bytes memory v = bytes(_semanticVersions[_deployments.length - 1].toString());
-        return string(abi.encodePacked(v[0]));
+        bytes memory v = bytes(latestVersion());
+        return string(bytes.concat(v[0]));
     }
 }

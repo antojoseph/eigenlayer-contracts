@@ -11,13 +11,11 @@ interface IProtocolRegistryTypes {
      * @notice Configuration for a protocol deployment.
      * @param pausable Whether this deployment can be paused.
      * @param upgradeable Whether this deployment is upgradeable.
-     * @param splitContract Whether this deployment uses a split-contract pattern (two implementations).
      * @param deprecated Whether this deployment is deprecated.
      */
     struct DeploymentConfig {
         bool pausable;
         bool upgradeable;
-        bool splitContract;
         bool deprecated;
     }
 
@@ -47,6 +45,12 @@ interface IProtocolRegistryEvents is IProtocolRegistryTypes {
      * @param config The configuration for the deployment.
      */
     event DeploymentConfigured(address indexed addr, DeploymentConfig config);
+
+    /**
+     * @notice Emitted when a deployment fails to pause.
+     * @param addr The address of the deployment.
+     */
+    event PauseFailed(address indexed addr);
 }
 
 interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents {
