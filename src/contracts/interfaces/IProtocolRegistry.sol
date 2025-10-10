@@ -36,10 +36,9 @@ interface IProtocolRegistryEvents is IProtocolRegistryTypes {
     /**
      * @notice Emitted when a deployment is shipped.
      * @param addr The address of the deployment.
-     * @param implementations The implementation addresses for the deployment.
      * @param semanticVersion The semantic version associated with the deployment.
      */
-    event DeploymentShipped(address indexed addr, address[] implementations, string semanticVersion);
+    event DeploymentShipped(address indexed addr, string semanticVersion);
 
     /**
      * @notice Emitted when a deployment is configured.
@@ -65,31 +64,14 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     ) external;
 
     /**
-     * @notice Ships a deployment and it's corresponding implementations.
-     * @dev Only callable by the owner.
-     * @param deployment The deployment to ship.
-     * @param implementations The implementations to ship.
-     * @param contractName The name of the contract to ship.
-     * @param semanticVersion The semantic version to ship.
-     */
-    function ship(
-        Deployment calldata deployment,
-        address[] calldata implementations,
-        string calldata contractName,
-        string calldata semanticVersion
-    ) external;
-
-    /**
      * @notice Ships a list of deployments and their corresponding implementations.
      * @dev Only callable by the owner.
      * @param deployments The deployments to ship.
-     * @param implementations The implementations to ship.
      * @param contractName The name of the contract to ship.
      * @param semanticVersion The semantic version to ship.
      */
     function ship(
         Deployment[] calldata deployments,
-        address[][] calldata implementations,
         string calldata contractName,
         string calldata semanticVersion
     ) external;

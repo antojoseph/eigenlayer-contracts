@@ -35,21 +35,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function ship(
-        Deployment calldata deployment,
-        address[] calldata implementations,
-        string calldata name,
-        string calldata semanticVersion
-    ) external onlyOwner {
-        // Update the semantic version.
-        _updateSemanticVersion(semanticVersion);
-        // Append the single deployment.
-        _appendDeployment(deployment, implementations, name, semanticVersion);
-    }
-
-    /// @inheritdoc IProtocolRegistry
-    function ship(
         Deployment[] calldata deployments,
-        address[][] calldata implementations,
         string calldata name,
         string calldata semanticVersion
     ) external onlyOwner {
@@ -57,7 +43,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         _updateSemanticVersion(semanticVersion);
         for (uint256 i = 0; i < deployments.length; ++i) {
             // Append each provided deployment.
-            _appendDeployment(deployments[i], implementations[i], name, semanticVersion);
+            _appendDeployment(deployments[i], name, semanticVersion);
         }
     }
 
@@ -97,10 +83,9 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         _semanticVersion = semanticVersion.toShortString();
     }
 
-    /// @dev Appends a deployment and it's corresponding implementations.
+    /// @dev Appends a deployment.
     function _appendDeployment(
         Deployment calldata deployment,
-        address[] calldata implementations,
         string calldata name,
         string calldata semanticVersion
     ) internal {
@@ -116,7 +101,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         _deploymentNames.push(name);
 
         // Emit the events.
-        emit DeploymentShipped(deployment.addr, implementations, semanticVersion);
+        emit DeploymentShipped(deployment.addr, semanticVersion);
         emit DeploymentConfigured(deployment.addr, deployment.config);
     }
 
