@@ -64,7 +64,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         for (uint256 i = 0; i < length; ++i) {
             Deployment storage deployment = _deployments[i];
             // Only attempt to pause deployments marked as pausable.
-            if (deployment.config.pausable) {
+            if (deployment.config.pausable && !deployment.config.deprecated) {
                 IPausable(deployment.addr).pauseAll();
             }
         }
@@ -110,7 +110,10 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function _getImplementation(
         Deployment memory deployment
     ) internal view returns (address) {
-        return deployment.config.upgradeable ? PROXY_ADMIN.getProxyImplementation(deployment.addr) : deployment.addr;
+        if (deployment.config.upgradeable) {
+            return PROXY_ADMIN.getProxyImplementation(deployment.addr);
+        }
+        return deployment.addr;
     }
 
     /**
