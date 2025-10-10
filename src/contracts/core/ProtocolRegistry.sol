@@ -123,6 +123,20 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      */
 
     /// @inheritdoc IProtocolRegistry
+    function getAddress(
+        uint256 deploymentId
+    ) external view returns (address) {
+        return _deployments[deploymentId].addr;
+    }
+
+    /// @inheritdoc IProtocolRegistry
+    function getAddress(
+        string calldata name
+    ) external view returns (address) {
+        return _deployments[_deploymentIds[keccak256(bytes(name))]].addr;
+    }
+
+    /// @inheritdoc IProtocolRegistry
     function getDeployment(
         string calldata name
     ) external view returns (Deployment memory deployment, address implementation) {

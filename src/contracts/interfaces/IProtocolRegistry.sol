@@ -92,6 +92,24 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     function pauseAll() external;
 
     /**
+     * @notice Returns a deployment by ID.
+     * @param deploymentId The ID of the deployment to get.
+     * @return address The address of the deployment.
+     */
+    function getAddress(
+        uint256 deploymentId
+    ) external view returns (address);
+
+    /**
+     * @notice Returns a deployment by name.
+     * @param name The name of the deployment to get.
+     * @return address The address of the deployment.
+     */
+    function getAddress(
+        string calldata name
+    ) external view returns (address);
+
+    /**
      * @notice Returns a deployment by name.
      * @param name The name of the deployment to get.
      * @return deployment The deployment.
