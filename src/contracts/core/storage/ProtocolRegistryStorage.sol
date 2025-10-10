@@ -21,10 +21,6 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
     /// @notice Returns the deployment for a given deployment ID.
     mapping(uint256 deploymentId => Deployment deployment) internal _deployments;
 
-    /// @notice Returns the implementations for a given deployment.
-    /// @dev We use a nested list to support split-contract patterns.
-    mapping(address proxy => address[][] implementations) internal _implementations;
-
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.

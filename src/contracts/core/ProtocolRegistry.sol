@@ -112,8 +112,6 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
         // Append the deployment name.
         _deploymentNames.push(name);
-        // Append the implementations for the deployment.
-        _implementations[deployment.addr].push(implementations);
 
         // Emit the events.
         emit DeploymentShipped(deployment.addr, implementations, semanticVersion);
