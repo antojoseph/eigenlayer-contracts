@@ -4,9 +4,22 @@ pragma solidity ^0.8.27;
 import "@openzeppelin-upgrades/contracts/utils/ShortStringsUpgradeable.sol";
 import "../../interfaces/IProtocolRegistry.sol";
 
-// 64 bytes remain, could also use a bitmap if more is needed.
-
 abstract contract ProtocolRegistryStorage is IProtocolRegistry {
+    /**
+     *
+     *                         IMMUTABLE STATE
+     *
+     */
+
+    /// @inheritdoc IProtocolRegistry
+    IProxyAdmin public immutable PROXY_ADMIN;
+
+    /**
+     *
+     *                          MUTABLE STATE
+     *
+     */
+
     /// @notice Returns the semantic version of the protocol.
     ShortString internal _semanticVersion;
 
@@ -16,6 +29,17 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
     mapping(bytes32 name => uint256 deploymentId) internal _deploymentIds;
     /// @notice Returns the deployment for a given deployment ID.
     mapping(uint256 deploymentId => Deployment deployment) internal _deployments;
+
+    /**
+     *
+     *                         INITIALIZING FUNCTIONS
+     *
+     */
+    constructor(
+        IProxyAdmin proxyAdmin
+    ) {
+        PROXY_ADMIN = proxyAdmin;
+    }
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new

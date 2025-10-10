@@ -14,7 +14,9 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      *                         INITIALIZING FUNCTIONS
      *
      */
-    constructor() {
+    constructor(
+        IProxyAdmin proxyAdmin
+    ) ProtocolRegistryStorage(proxyAdmin) {
         _disableInitializers();
     }
 
@@ -110,13 +112,20 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         _deployments[deploymentId] = deployment;
         // Store the deployment ID.
         _deploymentIds[keccak256(bytes(name))] = deploymentId;
-
         // Append the deployment name.
         _deploymentNames.push(name);
 
         // Emit the events.
         emit DeploymentShipped(deployment.addr, implementations, semanticVersion);
         emit DeploymentConfigured(deployment.addr, deployment.config);
+    }
+
+    /// @dev Fetches the implementation for a deployment if it's upgradeable.
+    /// Otherwise, returns the deployment address.
+    function _getImplementation(
+        Deployment memory deployment
+    ) internal view returns (address) {
+        return deployment.config.upgradeable ? PROXY_ADMIN.getProxyImplementation(deployment.addr) : deployment.addr;
     }
 
     /**
@@ -128,34 +137,29 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     /// @inheritdoc IProtocolRegistry
     function getDeployment(
         string calldata name
-    ) external view returns (Deployment memory) {
-        return _deployments[_deploymentIds[keccak256(bytes(name))]];
+    ) external view returns (Deployment memory deployment, address implementation) {
+        deployment = _deployments[_deploymentIds[keccak256(bytes(name))]];
+        implementation = _getImplementation(deployment);
     }
 
     /// @inheritdoc IProtocolRegistry
-    function getAllDeployments() external view returns (string[] memory names, Deployment[] memory deployments) {
+    function getAllDeployments()
+        external
+        view
+        returns (string[] memory names, Deployment[] memory deployments, address[] memory implementations)
+    {
         uint256 length = totalDeployments();
         names = new string[](length);
         deployments = new Deployment[](length);
         for (uint256 i = 0; i < length; ++i) {
             names[i] = _deploymentNames[i];
             deployments[i] = _deployments[i];
+            implementations[i] = _getImplementation(deployments[i]);
         }
     }
 
     /// @inheritdoc IProtocolRegistry
     function totalDeployments() public view returns (uint256) {
         return _deploymentNames.length;
-    }
-
-    /// @inheritdoc IProtocolRegistry
-    function latestVersion() public view returns (string memory) {
-        return _semanticVersion.toString();
-    }
-
-    /// @inheritdoc IProtocolRegistry
-    function latestMajorVersion() external view returns (string memory) {
-        bytes memory v = bytes(latestVersion());
-        return string(bytes.concat(v[0]));
     }
 }

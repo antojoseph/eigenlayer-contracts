@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.27;
 
+import "./IProxyAdmin.sol";
+
 interface IProtocolRegistryErrors {
     /// @notice Thrown when two array parameters have mismatching lengths.
     error InputArrayLengthMismatch();
@@ -110,18 +112,23 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     /**
      * @notice Returns a deployment by name.
      * @param name The name of the deployment to get.
-     * @return The deployment.
+     * @return deployment The deployment.
+     * @return implementation The implementation.
      */
     function getDeployment(
         string calldata name
-    ) external view returns (Deployment memory);
+    ) external view returns (Deployment memory deployment, address implementation);
 
     /**
      * @notice Returns all deployments.
      * @return names The names of the deployments.
      * @return deployments The deployments.
+     * @return implementations The implementations.
      */
-    function getAllDeployments() external view returns (string[] memory names, Deployment[] memory deployments);
+    function getAllDeployments()
+        external
+        view
+        returns (string[] memory names, Deployment[] memory deployments, address[] memory implementations);
 
     /**
      * @notice Returns the total number of deployments.
@@ -130,14 +137,8 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     function totalDeployments() external view returns (uint256);
 
     /**
-     * @notice Returns the semantic version string for the latest deployment.
-     * @return The semantic version string associated with the latest deployment.
+     * @notice Returns the proxy admin for the protocol.
+     * @return The proxy admin for the protocol.
      */
-    function latestVersion() external view returns (string memory);
-
-    /**
-     * @notice Returns the major version string for the latest deployment.
-     * @return The major version string associated with the latest deployment.
-     */
-    function latestMajorVersion() external view returns (string memory);
+    function PROXY_ADMIN() external view returns (IProxyAdmin);
 }
