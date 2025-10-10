@@ -35,25 +35,27 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function ship(
         Deployment calldata deployment,
         address[] calldata implementations,
+        string calldata contractName,
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
         _semanticVersions.push(semanticVersion.toShortString());
         // Append the single deployment.
-        _appendDeployment(deployment, implementations, semanticVersion);
+        _appendDeployment(deployment, implementations, contractName, semanticVersion);
     }
 
     /// @inheritdoc IProtocolRegistry
     function ship(
         Deployment[] calldata deployments,
         address[][] calldata implementations,
+        string calldata contractName,
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
         _semanticVersions.push(semanticVersion.toShortString());
         for (uint256 i = 0; i < deployments.length; ++i) {
             // Append each provided deployment.
-            _appendDeployment(deployments[i], implementations[i], semanticVersion);
+            _appendDeployment(deployments[i], implementations[i], contractName, semanticVersion);
         }
     }
 
@@ -69,9 +71,9 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function pauseAll() external onlyOwner {
-        uint256 totalDeployments = _deployments.length;
+        uint256 length = totalDeployments();
         // Iterate over all stored deployments
-        for (uint256 i = 0; i < totalDeployments; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             Deployment storage deployment = _deployments[i];
             // Only attempt to pause deployments marked as pausable
             if (deployment.config.pausable) {
@@ -96,14 +98,23 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function _appendDeployment(
         Deployment calldata deployment,
         address[] calldata implementations,
+        string calldata contractName,
         string calldata semanticVersion
     ) internal {
         // TODO: Prevent duplicates
 
-        // Append the deployment.
-        _deployments.push(deployment);
+        uint256 deploymentId = totalDeployments();
+
+        // Store the deployment.
+        _deployments[deploymentId] = deployment;
+        // Store the deployment ID.
+        _deploymentIds[keccak256(bytes(contractName))] = deploymentId;
+
+        // Append the deployment name.
+        _deploymentNames.push(contractName);
         // Append the implementations for the deployment.
         _implementations[deployment.addr].push(implementations);
+
         // Emit the events.
         emit DeploymentShipped(deployment.addr, implementations, semanticVersion);
         emit DeploymentConfigured(deployment.addr, deployment.config);
@@ -116,9 +127,32 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      */
 
     /// @inheritdoc IProtocolRegistry
+    function getDeployment(
+        string calldata contractName
+    ) external view returns (Deployment memory) {
+        return _deployments[_deploymentIds[keccak256(bytes(contractName))]];
+    }
+
+    /// @inheritdoc IProtocolRegistry
+    function getAllDeployments() external view returns (string[] memory names, Deployment[] memory deployments) {
+        uint256 length = totalDeployments();
+        names = new string[](length);
+        deployments = new Deployment[](length);
+        for (uint256 i = 0; i < length; ++i) {
+            names[i] = _deploymentNames[i];
+            deployments[i] = _deployments[i];
+        }
+    }
+
+    /// @inheritdoc IProtocolRegistry
+    function totalDeployments() public view returns (uint256) {
+        return _deploymentNames.length;
+    }
+
+    /// @inheritdoc IProtocolRegistry
     function latestVersion() public view returns (string memory) {
         unchecked {
-            return _semanticVersions[_deployments.length - 1].toString();
+            return _semanticVersions[_deploymentNames.length - 1].toString();
         }
     }
 

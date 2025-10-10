@@ -12,8 +12,14 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
     ///      The latest element is the semantic version for the most recent deployment.
     ShortString[] internal _semanticVersions;
 
-    /// @notice Returns an append-only list of all deployments (state holding contracts).
-    Deployment[] internal _deployments;
+    /// @notice Returns an append-only list of all deployment names.
+    string[] internal _deploymentNames;
+
+    /// @notice Returns the deployment ID for a given deployment name.
+    mapping(bytes32 name => uint256 deploymentId) internal _deploymentIds;
+
+    /// @notice Returns the deployment for a given deployment ID.
+    mapping(uint256 deploymentId => Deployment deployment) internal _deployments;
 
     /// @notice Returns the implementations for a given deployment.
     /// @dev We use a nested list to support split-contract patterns.

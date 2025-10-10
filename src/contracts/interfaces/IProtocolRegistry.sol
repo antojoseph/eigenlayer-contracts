@@ -67,11 +67,13 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
      * @dev Only callable by the owner.
      * @param deployment The deployment to ship.
      * @param implementations The implementations to ship.
+     * @param contractName The name of the contract to ship.
      * @param semanticVersion The semantic version to ship.
      */
     function ship(
         Deployment calldata deployment,
         address[] calldata implementations,
+        string calldata contractName,
         string calldata semanticVersion
     ) external;
 
@@ -80,11 +82,13 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
      * @dev Only callable by the owner.
      * @param deployments The deployments to ship.
      * @param implementations The implementations to ship.
+     * @param contractName The name of the contract to ship.
      * @param semanticVersion The semantic version to ship.
      */
     function ship(
         Deployment[] calldata deployments,
         address[][] calldata implementations,
+        string calldata contractName,
         string calldata semanticVersion
     ) external;
 
@@ -102,6 +106,28 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
      *      Silently ignores errors during calls for rapid pausing in emergencies. Owner only.
      */
     function pauseAll() external;
+
+    /**
+     * @notice Returns a deployment by name.
+     * @param contractName The name of the deployment to get.
+     * @return The deployment.
+     */
+    function getDeployment(
+        string calldata contractName
+    ) external view returns (Deployment memory);
+
+    /**
+     * @notice Returns all deployments.
+     * @return The names of the deployments.
+     * @return The deployments.
+     */
+    function getAllDeployments() external view returns (string[] memory names, Deployment[] memory deployments);
+
+    /**
+     * @notice Returns the total number of deployments.
+     * @return The total number of deployments.
+     */
+    function totalDeployments() external view returns (uint256);
 
     /**
      * @notice Returns the semantic version string for the latest deployment.
