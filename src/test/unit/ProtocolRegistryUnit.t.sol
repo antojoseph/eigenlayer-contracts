@@ -291,8 +291,12 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
     /// -----------------------------------------------------------------------
 
     function test_getAllDeployments_Empty() public {
-        (string[] memory names, address[] memory addresses, address[] memory implementations, IProtocolRegistryTypes.DeploymentConfig[] memory configs) =
-            protocolRegistry.getAllDeployments();
+        (
+            string[] memory names,
+            address[] memory addresses,
+            address[] memory implementations,
+            IProtocolRegistryTypes.DeploymentConfig[] memory configs
+        ) = protocolRegistry.getAllDeployments();
 
         assertEq(names.length, 0);
         assertEq(addresses.length, 0);
