@@ -8,6 +8,7 @@ import "./storage/ProtocolRegistryStorage.sol";
 
 contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistryStorage {
     using ShortStringsUpgradeable for *;
+    using EnumerableMap for EnumerableMap.UintToAddressMap;
 
     /**
      *
@@ -35,26 +36,28 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @inheritdoc IProtocolRegistry
     function ship(
-        Deployment[] calldata deployments,
-        string calldata name,
+        address[] calldata addresses,
+        DeploymentConfig[] calldata configs,
+        string[] calldata names,
         string calldata semanticVersion
     ) external onlyOwner {
         // Update the semantic version.
         _updateSemanticVersion(semanticVersion);
-        for (uint256 i = 0; i < deployments.length; ++i) {
-            // Append each provided deployment.
-            _appendDeployment(deployments[i], name, semanticVersion);
+        for (uint256 i = 0; i < addresses.length; ++i) {
+            // Append each provided
+            _appendDeployment(addresses[i], configs[i], names[i], semanticVersion);
         }
     }
 
     /// @inheritdoc IProtocolRegistry
     function configure(uint256 deploymentIndex, DeploymentConfig calldata config) external onlyOwner {
-        // Create a storage pointer for so we only read once.
-        Deployment storage deployment = _deployments[deploymentIndex];
-        // Update the deployment config.
-        deployment.config = config;
+        require(deploymentIndex < _deployments.length(), OutOfBounds());
+        // Get the address at the given index
+        (, address addr) = _deployments.at(deploymentIndex);
+        // Update the config
+        _deploymentConfigs[addr] = config;
         // Emit the event.
-        emit DeploymentConfigured(deployment.addr, config);
+        emit DeploymentConfigured(addr, config);
     }
 
     /// @inheritdoc IProtocolRegistry
@@ -62,10 +65,11 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         uint256 length = totalDeployments();
         // Iterate over all stored deployments.
         for (uint256 i = 0; i < length; ++i) {
-            Deployment storage deployment = _deployments[i];
+            (, address addr) = _deployments.at(i);
+            DeploymentConfig memory config = _deploymentConfigs[addr];
             // Only attempt to pause deployments marked as pausable.
-            if (deployment.config.pausable && !deployment.config.deprecated) {
-                IPausable(deployment.addr).pauseAll();
+            if (config.pausable && !config.deprecated) {
+                IPausable(addr).pauseAll();
             }
         }
     }
@@ -85,35 +89,41 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
 
     /// @dev Appends a deployment.
     function _appendDeployment(
-        Deployment calldata deployment,
+        address addr,
+        DeploymentConfig calldata config,
         string calldata name,
         string calldata semanticVersion
     ) internal {
-        // TODO: Prevent duplicates
-
-        uint256 deploymentId = totalDeployments();
-
-        // Store the deployment.
-        _deployments[deploymentId] = deployment;
-        // Store the deployment ID.
-        _deploymentIds[keccak256(bytes(name))] = deploymentId;
-        // Append the deployment name.
-        _deploymentNames.push(name);
-
+        // Store name => address mapping
+        _deployments.set({key: _unwrap(name.toShortString()), value: addr});
+        // Store deployment config
+        _deploymentConfigs[addr] = config;
         // Emit the events.
-        emit DeploymentShipped(deployment.addr, semanticVersion);
-        emit DeploymentConfigured(deployment.addr, deployment.config);
+        emit DeploymentShipped(addr, semanticVersion);
+        emit DeploymentConfigured(addr, config);
     }
 
     /// @dev Fetches the implementation for a deployment if it's upgradeable.
     /// Otherwise, returns the deployment address.
-    function _getImplementation(
-        Deployment memory deployment
-    ) internal view returns (address) {
-        if (deployment.config.upgradeable) {
-            return PROXY_ADMIN.getProxyImplementation(deployment.addr);
+    function _getImplementation(address addr, DeploymentConfig memory config) internal view returns (address) {
+        if (config.upgradeable) {
+            return PROXY_ADMIN.getProxyImplementation(addr);
         }
-        return deployment.addr;
+        return addr;
+    }
+
+    /// @dev Unwraps a ShortString to a uint256.
+    function _unwrap(
+        ShortString shortString
+    ) internal pure returns (uint256) {
+        return uint256(ShortString.unwrap(shortString));
+    }
+
+    /// @dev Wraps a uint256 to a ShortString.
+    function _wrap(
+        uint256 shortString
+    ) internal pure returns (ShortString) {
+        return ShortString.wrap(bytes32(shortString));
     }
 
     /**
@@ -126,42 +136,60 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     function getAddress(
         uint256 deploymentId
     ) external view returns (address) {
-        return _deployments[deploymentId].addr;
+        require(deploymentId < _deployments.length(), OutOfBounds());
+        (, address addr) = _deployments.at(deploymentId);
+        return addr;
     }
 
     /// @inheritdoc IProtocolRegistry
     function getAddress(
         string calldata name
     ) external view returns (address) {
-        return _deployments[_deploymentIds[keccak256(bytes(name))]].addr;
+        uint256 nameShortString = _unwrap(name.toShortString());
+        return _deployments.get(nameShortString);
     }
 
     /// @inheritdoc IProtocolRegistry
     function getDeployment(
         string calldata name
-    ) external view returns (Deployment memory deployment, address implementation) {
-        deployment = _deployments[_deploymentIds[keccak256(bytes(name))]];
-        implementation = _getImplementation(deployment);
+    ) external view returns (address addr, address implementation, DeploymentConfig memory config) {
+        uint256 nameShortString = _unwrap(name.toShortString());
+        addr = _deployments.get(nameShortString);
+        implementation = _getImplementation(addr, config);
+        config = _deploymentConfigs[addr];
+        return (addr, implementation, config);
     }
 
     /// @inheritdoc IProtocolRegistry
     function getAllDeployments()
         external
         view
-        returns (string[] memory names, Deployment[] memory deployments, address[] memory implementations)
+        returns (
+            string[] memory names,
+            address[] memory addresses,
+            address[] memory implementations,
+            DeploymentConfig[] memory configs
+        )
     {
         uint256 length = totalDeployments();
         names = new string[](length);
-        deployments = new Deployment[](length);
+        addresses = new address[](length);
+        implementations = new address[](length);
+        configs = new DeploymentConfig[](length);
+
         for (uint256 i = 0; i < length; ++i) {
-            names[i] = _deploymentNames[i];
-            deployments[i] = _deployments[i];
-            implementations[i] = _getImplementation(deployments[i]);
+            (uint256 nameShortString, address addr) = _deployments.at(i);
+            names[i] = ShortString.wrap(bytes32(nameShortString)).toString();
+            addresses[i] = addr;
+            configs[i] = _deploymentConfigs[addr];
+            implementations[i] = _getImplementation(addr, configs[i]);
         }
+
+        return (names, addresses, implementations, configs);
     }
 
     /// @inheritdoc IProtocolRegistry
     function totalDeployments() public view returns (uint256) {
-        return _deploymentNames.length;
+        return _deployments.length();
     }
 }

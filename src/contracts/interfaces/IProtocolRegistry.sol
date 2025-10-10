@@ -6,6 +6,8 @@ import "./IProxyAdmin.sol";
 interface IProtocolRegistryErrors {
     /// @notice Thrown when two array parameters have mismatching lengths.
     error InputArrayLengthMismatch();
+    /// @notice Thrown when an index is out of bounds.
+    error OutOfBounds();
 }
 
 interface IProtocolRegistryTypes {
@@ -19,16 +21,6 @@ interface IProtocolRegistryTypes {
         bool pausable;
         bool upgradeable;
         bool deprecated;
-    }
-
-    /**
-     * @notice Parameters describing a protocol deployment.
-     * @param addr The address of the deployment (proxy address if upgradeable).
-     * @param config The configuration for the deployment.
-     */
-    struct Deployment {
-        address addr;
-        DeploymentConfig config;
     }
 }
 
@@ -66,13 +58,15 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     /**
      * @notice Ships a list of deployments and their corresponding implementations.
      * @dev Only callable by the owner.
-     * @param deployments The deployments to ship.
-     * @param contractName The name of the contract to ship.
+     * @param addresses The addresses of the deployments to ship.
+     * @param configs The configurations of the deployments to ship.
+     * @param contractNames The names of the contracts to ship.
      * @param semanticVersion The semantic version to ship.
      */
     function ship(
-        Deployment[] calldata deployments,
-        string calldata contractName,
+        address[] calldata addresses,
+        DeploymentConfig[] calldata configs,
+        string[] calldata contractNames,
         string calldata semanticVersion
     ) external;
 
@@ -112,23 +106,30 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     /**
      * @notice Returns a deployment by name.
      * @param name The name of the deployment to get.
-     * @return deployment The deployment.
+     * @return addr The address.
      * @return implementation The implementation.
+     * @return config The configuration.
      */
     function getDeployment(
         string calldata name
-    ) external view returns (Deployment memory deployment, address implementation);
+    ) external view returns (address addr, address implementation, DeploymentConfig memory config);
 
     /**
      * @notice Returns all deployments.
      * @return names The names of the deployments.
-     * @return deployments The deployments.
+     * @return addresses The addresses.
      * @return implementations The implementations.
+     * @return configs The configurations.
      */
     function getAllDeployments()
         external
         view
-        returns (string[] memory names, Deployment[] memory deployments, address[] memory implementations);
+        returns (
+            string[] memory names,
+            address[] memory addresses,
+            address[] memory implementations,
+            DeploymentConfig[] memory configs
+        );
 
     /**
      * @notice Returns the total number of deployments.
