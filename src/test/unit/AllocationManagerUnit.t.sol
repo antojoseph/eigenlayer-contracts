@@ -4431,6 +4431,8 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         // Migrate the slasher
         cheats.expectEmit(true, true, true, true, address(allocationManager));
         emit SlasherUpdated(defaultOperatorSet, defaultAVS, uint32(block.number));
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherMigrated(defaultOperatorSet, defaultAVS);
         vm.record();
         allocationManager.migrateSlashers(defaultOperatorSet.toArray());
 
@@ -4451,6 +4453,8 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         // Migrate the slasher
         cheats.expectEmit(true, true, true, true, address(allocationManager));
         emit SlasherUpdated(defaultOperatorSet, defaultAVS, uint32(block.number));
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherMigrated(defaultOperatorSet, defaultAVS);
         allocationManager.migrateSlashers(defaultOperatorSet.toArray());
 
         // Check that the slasher is set to the defaultAVS
@@ -4468,6 +4472,8 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         // Migrate the slasher - only the first appointee should be set
         cheats.expectEmit(true, true, true, true, address(allocationManager));
         emit SlasherUpdated(defaultOperatorSet, appointee1, uint32(block.number));
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherMigrated(defaultOperatorSet, appointee1);
         allocationManager.migrateSlashers(defaultOperatorSet.toArray());
 
         // Check that the slasher is set to the first appointee
@@ -4486,6 +4492,8 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         // Migrate the slasher - only the second appointee should be set
         cheats.expectEmit(true, true, true, true, address(allocationManager));
         emit SlasherUpdated(defaultOperatorSet, appointee2, uint32(block.number));
+        cheats.expectEmit(true, true, true, true, address(allocationManager));
+        emit SlasherMigrated(defaultOperatorSet, appointee2);
         allocationManager.migrateSlashers(defaultOperatorSet.toArray());
 
         // Check that the slasher is set to the second appointee
@@ -4544,6 +4552,8 @@ contract AllocationManagerUnitTests_migrateSlashers is AllocationManagerUnitTest
         for (uint i = 0; i < numOpSets; ++i) {
             cheats.expectEmit(true, true, true, true, address(allocationManager));
             emit SlasherUpdated(operatorSets[i], avs, uint32(block.number));
+            cheats.expectEmit(true, true, true, true, address(allocationManager));
+            emit SlasherMigrated(operatorSets[i], avs);
         }
 
         // Migrate the slashers

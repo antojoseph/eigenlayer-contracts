@@ -377,6 +377,7 @@ contract AllocationManager is
             }
 
             _updateSlasher({operatorSet: operatorSets[i], slasher: slasher, instantEffectBlock: true});
+            emit SlasherMigrated(operatorSets[i], slasher);
         }
     }
 
