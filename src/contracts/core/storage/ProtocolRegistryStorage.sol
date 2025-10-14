@@ -24,9 +24,6 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
     /// @inheritdoc IProtocolRegistry
     IProxyAdmin public immutable PROXY_ADMIN;
 
-    /// @inheritdoc IProtocolRegistry
-    address public immutable PAUSER_MULTISIG;
-
     /**
      *
      *                          MUTABLE STATE
@@ -47,9 +44,10 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
      *                         INITIALIZING FUNCTIONS
      *
      */
-    constructor(IProxyAdmin proxyAdmin, address pauserMultisig) {
+    constructor(
+        IProxyAdmin proxyAdmin
+    ) {
         PROXY_ADMIN = proxyAdmin;
-        PAUSER_MULTISIG = pauserMultisig;
     }
 
     /**

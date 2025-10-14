@@ -139,10 +139,4 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
      * @return The proxy admin for the protocol.
      */
     function PROXY_ADMIN() external view returns (IProxyAdmin);
-
-    /**
-     * @notice Returns the pauser multisig for the protocol.
-     * @return The pauser multisig for the protocol.
-     */
-    function PAUSER_MULTISIG() external view returns (address);
 }

@@ -27,7 +27,7 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
         registry = ProtocolRegistry(
             address(
                 new TransparentUpgradeableProxy(
-                    address(new ProtocolRegistry(IProxyAdmin(proxyAdmin), pauserMultisig)),
+                    address(new ProtocolRegistry(IProxyAdmin(proxyAdmin))),
                     address(eigenLayerProxyAdmin),
                     abi.encodeWithSelector(ProtocolRegistry.initialize.selector, defaultOwner, pauserMultisig)
                 )
