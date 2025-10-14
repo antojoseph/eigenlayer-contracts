@@ -41,11 +41,24 @@ abstract contract SplitContractMixin {
         }
     }
 
+    /**
+     * @dev Performs a delegate call to `implementation` in the context of a view function.
+     *
+     * This function typecasts the non-view `_delegate` function to a view function in order to
+     * allow its invocation from a view context. This is required because the EVM itself does not
+     * enforce view/pure mutability, and using inline assembly, it is possible to cast a function
+     * pointer to a view (read-only) signature. This pattern is sometimes used for readonly proxies,
+     * but it should be used cautiously since any state-modifying logic in the underlying delegate
+     * violates the spirit of a view call.
+     *
+     * @param implementation The address to which the call should be delegated.
+     */
     function _delegateView(
         address implementation
     ) internal view virtual {
         function(address) fn = _delegate;
         function(address) view fnView;
+        /// @solidity memory-safe-assembly
         assembly {
             fnView := fn
         }
