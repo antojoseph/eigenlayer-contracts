@@ -2,11 +2,11 @@
 pragma solidity ^0.8.27;
 
 import "@openzeppelin-upgrades/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin-upgrades/contracts/access/OwnableUpgradeable.sol";
+import "@openzeppelin-upgrades/contracts/access/AccessControlEnumerableUpgradeable.sol";
 import "../interfaces/IPausable.sol";
 import "./storage/ProtocolRegistryStorage.sol";
 
-contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistryStorage {
+contract ProtocolRegistry is Initializable, AccessControlEnumerableUpgradeable, ProtocolRegistryStorage {
     using ShortStringsUpgradeable for *;
     using EnumerableMap for EnumerableMap.UintToAddressMap;
 
@@ -15,17 +15,14 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
      *                         INITIALIZING FUNCTIONS
      *
      */
-    constructor(
-        IProxyAdmin proxyAdmin
-    ) ProtocolRegistryStorage(proxyAdmin) {
+    constructor(IProxyAdmin proxyAdmin, address pauserMultisig) ProtocolRegistryStorage(proxyAdmin, pauserMultisig) {
         _disableInitializers();
     }
 
     /// @inheritdoc IProtocolRegistry
-    function initialize(
-        address initialOwner
-    ) external initializer {
-        _transferOwnership(initialOwner);
+    function initialize(address initialAdmin, address pauserMultisig) external initializer {
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _grantRole(PAUSER_ROLE, pauserMultisig);
     }
 
     /**
@@ -40,7 +37,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
         DeploymentConfig[] calldata configs,
         string[] calldata names,
         string calldata semanticVersion
-    ) external onlyOwner {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Update the semantic version.
         _updateSemanticVersion(semanticVersion);
         for (uint256 i = 0; i < addresses.length; ++i) {
@@ -50,7 +47,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     }
 
     /// @inheritdoc IProtocolRegistry
-    function configure(address addr, DeploymentConfig calldata config) external onlyOwner {
+    function configure(address addr, DeploymentConfig calldata config) external onlyRole(DEFAULT_ADMIN_ROLE) {
         // Update the config
         _deploymentConfigs[addr] = config;
         // Emit the event.
@@ -58,7 +55,7 @@ contract ProtocolRegistry is Initializable, OwnableUpgradeable, ProtocolRegistry
     }
 
     /// @inheritdoc IProtocolRegistry
-    function pauseAll() external onlyOwner {
+    function pauseAll() external onlyRole(PAUSER_ROLE) {
         uint256 length = totalDeployments();
         // Iterate over all stored deployments.
         for (uint256 i = 0; i < length; ++i) {

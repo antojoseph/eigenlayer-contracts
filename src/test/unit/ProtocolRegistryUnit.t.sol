@@ -10,12 +10,14 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
 
     address defaultOwner;
     address nonOwner;
+    address pauserMultisig;
 
     function setUp() public virtual override {
         EigenLayerUnitTestSetup.setUp();
 
         defaultOwner = address(this);
         nonOwner = cheats.randomAddress();
+        pauserMultisig = cheats.randomAddress();
 
         proxyAdminMock = new ProxyAdminMock();
         protocolRegistry = _deployProtocolRegistry(address(proxyAdminMock));
@@ -25,9 +27,9 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
         registry = ProtocolRegistry(
             address(
                 new TransparentUpgradeableProxy(
-                    address(new ProtocolRegistry(IProxyAdmin(proxyAdmin))),
+                    address(new ProtocolRegistry(IProxyAdmin(proxyAdmin), pauserMultisig)),
                     address(eigenLayerProxyAdmin),
-                    abi.encodeWithSelector(ProtocolRegistry.initialize.selector, defaultOwner)
+                    abi.encodeWithSelector(ProtocolRegistry.initialize.selector, defaultOwner, pauserMultisig)
                 )
             )
         );
@@ -39,10 +41,15 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
     /// -----------------------------------------------------------------------
 
     function test_initialize_Correctness() public {
-        assertEq(protocolRegistry.owner(), defaultOwner);
+        assertEq(protocolRegistry.hasRole(protocolRegistry.DEFAULT_ADMIN_ROLE(), defaultOwner), true);
+        assertEq(protocolRegistry.hasRole(protocolRegistry.PAUSER_ROLE(), pauserMultisig), true);
+        assertEq(protocolRegistry.getRoleMemberCount(protocolRegistry.DEFAULT_ADMIN_ROLE()), 1);
+        assertEq(protocolRegistry.getRoleMemberCount(protocolRegistry.PAUSER_ROLE()), 1);
+        assertEq(protocolRegistry.getRoleMember(protocolRegistry.DEFAULT_ADMIN_ROLE(), 0), defaultOwner);
+        assertEq(protocolRegistry.getRoleMember(protocolRegistry.PAUSER_ROLE(), 0), pauserMultisig);
         assertEq(address(protocolRegistry.PROXY_ADMIN()), address(proxyAdminMock));
         cheats.expectRevert("Initializable: contract is already initialized");
-        protocolRegistry.initialize(defaultOwner);
+        protocolRegistry.initialize(defaultOwner, pauserMultisig);
     }
 
     /// -----------------------------------------------------------------------
@@ -55,7 +62,7 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
         string[] memory names = new string[](1);
 
         cheats.prank(nonOwner);
-        cheats.expectRevert("Ownable: caller is not the owner");
+        cheats.expectRevert();
         protocolRegistry.ship(addresses, configs, names, "1.0.0");
     }
 
@@ -117,7 +124,7 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
             IProtocolRegistryTypes.DeploymentConfig({pausable: true, upgradeable: false, deprecated: false});
 
         cheats.prank(nonOwner);
-        cheats.expectRevert("Ownable: caller is not the owner");
+        cheats.expectRevert();
         protocolRegistry.configure(addr, config);
     }
 
@@ -154,9 +161,9 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
     /// pauseAll()
     /// -----------------------------------------------------------------------
 
-    function test_pauseAll_OnlyOwner() public {
+    function test_pauseAll_OnlyPauserMultisig() public {
         cheats.prank(nonOwner);
-        cheats.expectRevert("Ownable: caller is not the owner");
+        cheats.expectRevert();
         protocolRegistry.pauseAll();
     }
 
@@ -182,6 +189,7 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
 
         protocolRegistry.ship(addresses, configs, names, "1.0.0");
 
+        cheats.prank(pauserMultisig);
         protocolRegistry.pauseAll();
 
         assertTrue(pausable1.paused());
@@ -206,6 +214,7 @@ contract ProtocolRegistryUnitTests is EigenLayerUnitTestSetup, IProtocolRegistry
 
         protocolRegistry.ship(addresses, configs, names, "1.0.0");
 
+        cheats.prank(pauserMultisig);
         protocolRegistry.pauseAll();
 
         assertTrue(pausable.paused());

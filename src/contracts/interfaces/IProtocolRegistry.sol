@@ -49,16 +49,15 @@ interface IProtocolRegistryEvents is IProtocolRegistryTypes {
 
 interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents {
     /**
-     * @notice Initializes the ProtocolRegistry with the initial owner.
-     * @param initialOwner The address to set as the initial owner.
+     * @notice Initializes the ProtocolRegistry with the initial admin.
+     * @param initialAdmin The address to set as the initial admin.
+     * @param pauserMultisig The address to set as the pauser multisig.
      */
-    function initialize(
-        address initialOwner
-    ) external;
+    function initialize(address initialAdmin, address pauserMultisig) external;
 
     /**
      * @notice Ships a list of deployments and their corresponding implementations.
-     * @dev Only callable by the owner.
+     * @dev Only callable by the admin.
      * @param addresses The addresses of the deployments to ship.
      * @param configs The configurations of the deployments to ship.
      * @param contractNames The names of the contracts to ship.
@@ -73,7 +72,7 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
 
     /**
      * @notice Configures a deployment.
-     * @dev Only callable by the owner.
+     * @dev Only callable by the admin.
      * @param addr The address of the deployment to configure.
      * @param config The configuration to set.
      */
@@ -82,7 +81,7 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     /**
      * @notice Pauses all deployments that support pausing.
      * @dev Loops over all deployments and attempts to invoke `pauseAll()` on each contract that is marked as pausable.
-     *      Silently ignores errors during calls for rapid pausing in emergencies. Owner only.
+     *      Silently ignores errors during calls for rapid pausing in emergencies. Pauser role only.
      */
     function pauseAll() external;
 
@@ -130,8 +129,20 @@ interface IProtocolRegistry is IProtocolRegistryErrors, IProtocolRegistryEvents 
     function totalDeployments() external view returns (uint256);
 
     /**
+     * @notice Returns the pauser role for the protocol.
+     * @return The pauser role for the protocol.
+     */
+    function PAUSER_ROLE() external view returns (bytes32);
+
+    /**
      * @notice Returns the proxy admin for the protocol.
      * @return The proxy admin for the protocol.
      */
     function PROXY_ADMIN() external view returns (IProxyAdmin);
+
+    /**
+     * @notice Returns the pauser multisig for the protocol.
+     * @return The pauser multisig for the protocol.
+     */
+    function PAUSER_MULTISIG() external view returns (address);
 }

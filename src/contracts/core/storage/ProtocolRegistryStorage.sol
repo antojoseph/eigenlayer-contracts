@@ -8,12 +8,24 @@ import "../../interfaces/IProtocolRegistry.sol";
 abstract contract ProtocolRegistryStorage is IProtocolRegistry {
     /**
      *
+     *                           CONSTANTS
+     *
+     */
+
+    /// @inheritdoc IProtocolRegistry
+    bytes32 public constant PAUSER_ROLE = hex"01";
+
+    /**
+     *
      *                         IMMUTABLE STATE
      *
      */
 
     /// @inheritdoc IProtocolRegistry
     IProxyAdmin public immutable PROXY_ADMIN;
+
+    /// @inheritdoc IProtocolRegistry
+    address public immutable PAUSER_MULTISIG;
 
     /**
      *
@@ -35,10 +47,9 @@ abstract contract ProtocolRegistryStorage is IProtocolRegistry {
      *                         INITIALIZING FUNCTIONS
      *
      */
-    constructor(
-        IProxyAdmin proxyAdmin
-    ) {
+    constructor(IProxyAdmin proxyAdmin, address pauserMultisig) {
         PROXY_ADMIN = proxyAdmin;
+        PAUSER_MULTISIG = pauserMultisig;
     }
 
     /**
